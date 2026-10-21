@@ -120,6 +120,8 @@ Timecodes are for the final cut (`video/edl.json` produces exactly this timeline
 
 ## Capture commands
 
+Windows blocks scripts by default (execution policy Restricted). Run these from a PowerShell started with `powershell -NoProfile -ExecutionPolicy Bypass` (it applies to that window only), or prefix each one with `powershell -NoProfile -ExecutionPolicy Bypass -File`. The same goes for `make_video.ps1` below.
+
 ```powershell
 .\video\capture.ps1 -Ip 192.168.1.50 -Scene s01-home   -Seconds 20
 .\video\capture.ps1 -Scene s02-remote -Seconds 30

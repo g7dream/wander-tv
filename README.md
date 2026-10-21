@@ -152,11 +152,13 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## Deploy the backend
 
-The AWS side is one SAM / CloudFormation stack in `backend/`; full steps are in [backend/README.md](backend/README.md). In short, with the AWS CLI configured, the SAM CLI installed and access to a Bedrock model in your region (default `eu-central-1`):
+The AWS side is one SAM / CloudFormation stack in `backend/`; full steps are in [backend/README.md](backend/README.md). In short, with AWS CLI v2 signed in and access to a Bedrock model in your region (default `eu-central-1`; no SAM CLI needed), run from the repo root:
 
 ```powershell
-.\backend\deploy.ps1 -WriteGradle
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1 -WriteGradle
 ```
+
+Windows disables scripts by default (execution policy Restricted), so a bare `.\backend\deploy.ps1` fails with "running scripts is disabled on this system"; `-ExecutionPolicy Bypass` applies to that one PowerShell process only. If the repo came as a zip download, first run `Get-ChildItem backend -Recurse -Filter *.ps1 | Unblock-File`. The family content filters default to MEDIUM for page text in and for Lumo's words out; see backend/README.md to change them.
 
 This deploys API Gateway, Lambda, the Guardrail, DynamoDB and the IAM roles, then writes `wander.apiUrl` and `wander.apiKey` into `gradle.properties` so the next APK build talks to your stack. Leave those two properties empty to build a fully offline APK.
 

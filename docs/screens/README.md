@@ -1,6 +1,6 @@
 # Screenshots
 
-The main README shows these five images. Take them on the real Fire TV (1920x1080) once the build is final:
+The main README shows these five images. Take them on the real Fire TV (1920x1080) once the build is final. Windows blocks scripts by default, so run the commands below as `powershell -NoProfile -ExecutionPolicy Bypass -File .\video\capture.ps1 ...` (or from a PowerShell started with `-ExecutionPolicy Bypass`):
 
 | File | What to show | How |
 |---|---|---|

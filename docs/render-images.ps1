@@ -8,8 +8,8 @@
   librsvg (the common Windows "full" builds are not), and then the fonts fall back to Georgia/Segoe UI.
 
 .EXAMPLE
-  .\docs\render-images.ps1
-  .\docs\render-images.ps1 -Names end-card
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\docs\render-images.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\docs\render-images.ps1 -Names end-card
 #>
 param(
     [string[]]$Names = @("architecture", "title-card", "end-card"),

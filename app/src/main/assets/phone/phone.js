@@ -1077,7 +1077,10 @@
     padZone.hidden = rescue || cards || list;
     pad.setMode(tv.mode === 'browse' ? 'pointer' : 'focus');
     if (cards) renderCards();
-    else lastCard = { index: -1, count: -1 }; // a new deck starts without a flip animation
+    else {
+      lastCard = { index: -1, count: -1 }; // a new deck starts without a flip animation
+      stopCardsWait();
+    }
     if (rescue) renderRescue();
   }
 
@@ -1090,16 +1093,36 @@
   var cardsNext = $('cards-next');
   var cardsRead = $('cards-read');
   var lastCard = { index: -1, count: -1 };
+  // The TV toasts every card error; this is only the fallback when a deck never arrives.
+  var CARDS_SLOW_MS = 12000;
+  var cardsWaitSince = 0;
+  var cardsWaitTimer = 0;
+
+  function stopCardsWait() {
+    cardsWaitSince = 0;
+    clearTimeout(cardsWaitTimer);
+    cardsWaitTimer = 0;
+  }
 
   function renderCards() {
     var c = app.tv.cards;
     var count = c ? c.count : 0;
     var idx = count ? clamp(c.index, 0, count - 1) : 0;
     if (!count) {
-      setText(cardsTitle, 'Lumo is making cards...');
-      setText(cardsCount, 'Reading the page for the good bits');
+      if (!cardsWaitSince) {
+        cardsWaitSince = Date.now();
+        clearTimeout(cardsWaitTimer);
+        cardsWaitTimer = setTimeout(function () {
+          cardsWaitTimer = 0;
+          if (app.tv.mode === 'cards') renderCards();
+        }, CARDS_SLOW_MS + 50);
+      }
+      var slow = Date.now() - cardsWaitSince >= CARDS_SLOW_MS;
+      setText(cardsTitle, slow ? 'Still nothing...' : 'Lumo is making cards...');
+      setText(cardsCount, slow ? 'Tap Close cards to go back' : 'Reading the page for the good bits');
       setText(cardsNo, 'No. \u2026');
     } else {
+      stopCardsWait();
       setText(cardsTitle, c.title || 'Card ' + (idx + 1));
       setText(cardsCount, 'Card ' + (idx + 1) + ' of ' + count);
       setText(cardsNo, 'No. ' + (idx + 1 < 10 ? '0' : '') + (idx + 1));

@@ -13,11 +13,11 @@
   Windows PowerShell 5.1 + ffmpeg (any 2023+ build with libx264 and libfreetype).
 
 .EXAMPLE
-  .\video\make_video.ps1 -PlanOnly          # check timing and files, encode nothing
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\video\make_video.ps1 -PlanOnly          # check timing and files, encode nothing
 .EXAMPLE
-  .\video\make_video.ps1 -AllowMissing -TempVo -Draft   # rough cut before all footage / VO exists
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\video\make_video.ps1 -AllowMissing -TempVo -Draft   # rough cut before all footage / VO exists
 .EXAMPLE
-  .\video\make_video.ps1                    # the final cut
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\video\make_video.ps1                    # the final cut
 #>
 [CmdletBinding()]
 param(

@@ -134,8 +134,9 @@ TV -> Phone
   "field":{"focused":true,"label":"Search"},
   "cards":{"index":0,"count":4,"title":"Built for speed"} | null,
   "quest":{"id":"speed-safari","title":"Speed Safari","prompt":"...","emoji":"🐆","goal":3,
-           "found":[{"item":"Cheetah","pid":"p3","evidence":"..."}],"complete":false} | null,
-  "rescue":{"headline":"...","detail":"...","options":[{"label":"...","detail":"..."}]} | null,
+           "found":[{"item":"Cheetah","pid":"p3","evidence":"..."}],"complete":false,
+           "players":[{"pid":"p3","name":"Maya","color":1,"score":200}]} | null,
+  "rescue":{"headline":"...","detail":"...","options":[{"label":"...","detail":"...","kind":"quest"}]} | null,
   "quests":[{"id":"speed-safari","title":"Speed Safari","emoji":"🐆","prompt":"..."}]}
 {"t":"toast","text":"Lumo is checking your page...","kind":"info"|"good"|"bad"}
 {"t":"celebrate","text":"+100 Cheetah!","color":1}   sent to the scoring player (confetti + vibrate)
@@ -145,6 +146,11 @@ TV -> Phone
 slash (`phone/index.html`, `fonts/YoungSerif-Regular.ttf`); PhoneHub maps URL paths to them as above.
 MainActivity passes `AssetSource { p -> runCatching { assets.open(p).use { it.readBytes() } }.getOrNull() }`.
 The desktop harness applies the same mapping to a directory.
+
+`quest.players` is the TV's scoreboard (it includes the remote's "The couch" player once it has
+points); `rescue.options[].kind` is `quest` | `detour` | `wind_down`. Both are additive: phones fall back
+when they are missing. Browser WebSocket handshakes must use the TV's IP literal or `localhost` as Host
+(a DNS-rebinding guard); the QR code and the harness URLs already do.
 
 `mode` is the lowercase `Mode` enum name (`home`, `browse`, `cards`, `quest_picker`, `quest_intro`,
 `rescue`, `companion`). Hello rules: max 4 connected players. A `pid` matching a disconnected player

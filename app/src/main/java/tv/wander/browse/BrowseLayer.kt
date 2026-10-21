@@ -193,6 +193,9 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
         wv.loadUrl(target)
     }
 
+    /** True while an HTML5 video is fullscreen (Back leaves fullscreen; Play/Pause goes to the video). */
+    val isFullscreen: Boolean get() = customView != null
+
     /** WebView history back. False when there is nothing to go back to. */
     fun goBack(): Boolean = guard("goBack", false) {
         if (destroyed) return@guard false
@@ -313,6 +316,12 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
                 null -> if (!fieldFocused && text.isNotBlank()) open(text, driver)
             }
         }
+    }
+
+    /** Presses Enter in the focused page field (a phone's empty Send), without clicking at the cursor. */
+    fun pressEnter() = onMain {
+        if (destroyed) return@onMain
+        web?.let { typeWithKeys(it, "", true) }
     }
 
     fun zoom(delta: Int) = onMain {

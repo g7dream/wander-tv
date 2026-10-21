@@ -44,6 +44,7 @@ import tv.wander.net.LanAddress
 import tv.wander.net.PhoneCommand
 import tv.wander.net.PhoneHub
 import tv.wander.net.Qr
+import tv.wander.quest.QuestBoardView
 import tv.wander.quest.QuestCatalog
 import tv.wander.quest.QuestEngine
 import tv.wander.quest.QuestOverlay
@@ -561,7 +562,8 @@ class MainActivity : Activity() {
     }
 
     private fun noWebView(by: Player? = null) {
-        val msg = "This TV is missing its web engine. Update Android System WebView from the Appstore, then try again."
+        // One line, so Home's footer bubble stays below the favorites; the toast names the fix.
+        val msg = "This TV's web engine needs an update before I can open pages."
         lumo.say(msg, Mood.CONCERNED, 9000)
         toast.show("Web engine missing: update Android System WebView", ToastChip.Kind.BAD, 6000)
         by?.let { hub?.toast("The TV can't open pages yet: its web engine needs an update.", "bad", it.id) }
@@ -741,14 +743,8 @@ class MainActivity : Activity() {
         goHome()
     }
 
-    /**
-     * True while an HTML5 video is fullscreen in the browser. BrowseLayer claims Play/Pause only in that
-     * state, and a key-up has no side effect there, so a Play/Pause release is a safe probe.
-     */
-    private fun isVideoFullscreen(b: BrowseLayer): Boolean {
-        val now = SystemClock.uptimeMillis()
-        return runCatching { b.handleKey(KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, 0)) }.getOrDefault(false)
-    }
+    /** True while an HTML5 video is fullscreen in the browser. */
+    private fun isVideoFullscreen(b: BrowseLayer): Boolean = b.isFullscreen
 
     private fun homeKey(e: KeyEvent, fromPhone: Boolean): Sink {
         val code = e.keyCode
@@ -1262,6 +1258,8 @@ class MainActivity : Activity() {
      */
     private fun syncBoard(force: Boolean = false) {
         val board = if (mode == Mode.BROWSE) quests.board(questPlayers()) else null
+        // The title strip stops short of the scoreboard so its domain and "driving" chips stay visible.
+        browse?.setTopEndReserve(if (board != null) QuestBoardView.WIDTH_DP + 14f else 0f)
         val key = board?.let { b ->
             "${b.quest.id}|${b.found.size}|${b.complete}|" + b.players.joinToString(",") { "${it.id}:${it.score}:${it.colorIndex}" }
         }
@@ -1474,11 +1472,8 @@ class MainActivity : Activity() {
     private fun phoneEnter() {
         val b = browse
         when {
-            mode == Mode.BROWSE && fieldFocused && b != null -> {
-                // An overlay may have taken Android focus from the page; give it back so the field gets Enter.
-                if (!b.hasFocus()) b.requestFocus()
-                injectKey(KeyEvent.KEYCODE_ENTER)
-            }
+            // Straight to the page field (the WebView takes focus back if an overlay had it).
+            mode == Mode.BROWSE && fieldFocused && b != null -> b.pressEnter()
             mode == Mode.HOME && homeSearchOpen -> injectKey(KeyEvent.KEYCODE_ENTER)
             else -> injectKey(KeyEvent.KEYCODE_DPAD_CENTER)
         }

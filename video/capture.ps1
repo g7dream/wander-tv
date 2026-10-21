@@ -11,11 +11,11 @@
   Screenshot (-Shot): `screencap` to docs/screens/<Scene>.png (for the README).
 
 .EXAMPLE
-  .\video\capture.ps1 -Ip 192.168.1.50 -Scene s03-join -Seconds 60
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\video\capture.ps1 -Ip 192.168.1.50 -Scene s03-join -Seconds 60
 .EXAMPLE
-  .\video\capture.ps1 -Scene s05-quest -Seconds 180
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\video\capture.ps1 -Scene s05-quest -Seconds 180
 .EXAMPLE
-  .\video\capture.ps1 -Shot -Scene home
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\video\capture.ps1 -Shot -Scene home
 #>
 [CmdletBinding()]
 param(
