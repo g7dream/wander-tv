@@ -140,8 +140,9 @@ class LinesTest {
         every { Lines.rescueDismissed() }
         for (k in RescueOption.Kind.values()) every { Lines.rescueAccepted(k) }
         every { Lines.panelIntro(0) }
-        for (l in every { Lines.panelIntro(1) }) assertTrue(l, l.contains("1 page") && !l.contains("1 pages"))
-        for (l in every { Lines.panelIntro(9) }) assertTrue(l, l.contains("9 pages"))
+        // Counts trail stops, so it never reads like a second, different "pages" number next to the stat tile.
+        for (l in every { Lines.panelIntro(1) }) assertTrue(l, l.contains("1 stop") && !l.contains("1 stops") && !l.contains("page"))
+        for (l in every { Lines.panelIntro(9) }) assertTrue(l, l.contains("9 stops") && !l.contains("page"))
     }
 
     @Test

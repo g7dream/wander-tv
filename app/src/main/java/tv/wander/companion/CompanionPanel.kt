@@ -279,8 +279,9 @@ class CompanionPanel(context: Context, private val listener: Listener) : FrameLa
         val earlier = stops.size - shown.size
         for ((i, title) in shown.withIndex()) {
             val last = i == shown.size - 1 && earlier == 0
+            // The newest stop (the one that matters most) may wrap to two lines, so its row grows to fit.
             trailBox.addView(TrailStop(context, title, first = i == 0, last = last, ghost = false),
-                LinearLayout.LayoutParams(-1, dpi(STOP_H)))
+                LinearLayout.LayoutParams(-1, if (i == 0) LinearLayout.LayoutParams.WRAP_CONTENT else dpi(STOP_H)))
         }
         if (earlier > 0) {
             trailBox.addView(TrailStop(context, if (earlier == 1) "and 1 earlier stop" else "and $earlier earlier stops", first = false, last = true, ghost = true),
@@ -407,12 +408,19 @@ class CompanionPanel(context: Context, private val listener: Listener) : FrameLa
 
         init {
             setWillNotDraw(false)
+            // The newest stop wraps to two lines instead of cutting its title short; older ones stay one line.
             val now = first && !ghost
+            val chipH = context.dpi(STOP_H - 8f)
             val chip = Ui.text(context, if (ghost && title != null) TypeScale.CAPTION else TypeScale.BODY, if (ghost) Palette.MUTED else Palette.CREAM, if (now) Fonts.bodyBold else Fonts.body, title ?: "").apply {
-                maxLines = 1
+                maxLines = if (now) 2 else 1
                 ellipsize = TextUtils.TruncateAt.END
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(context.dpi(if (ghost && title != null) 4f else 14f), 0, context.dpi(14f), 0)
+                val padV = if (now) context.dpi(3f) else 0
+                setPadding(context.dpi(if (ghost && title != null) 4f else 14f), padV, context.dpi(14f), padV)
+                if (now) {
+                    minHeight = chipH
+                    setLineSpacing(0f, 1.04f)
+                }
                 maxWidth = context.dpi(LEFT_W - CHIP_X)
                 background = when {
                     title == null -> Ui.roundRect(context, 0x00000000, 14f, Palette.withAlpha(Palette.HAIRLINE, 0.9f), 1.5f)
@@ -421,8 +429,14 @@ class CompanionPanel(context: Context, private val listener: Listener) : FrameLa
                     else -> Ui.roundRect(context, Palette.DUSK, 14f)
                 }
             }
-            addView(chip, LayoutParams(if (title == null) context.dpi(ghostWidthDp) else LayoutParams.WRAP_CONTENT, context.dpi(STOP_H - 8f), Gravity.CENTER_VERTICAL).apply {
+            val w = if (title == null) context.dpi(ghostWidthDp) else LayoutParams.WRAP_CONTENT
+            addView(chip, LayoutParams(w, if (now) LayoutParams.WRAP_CONTENT else chipH, Gravity.CENTER_VERTICAL).apply {
                 leftMargin = context.dpi(CHIP_X)
+                // Same 4dp breathing room above and below as a fixed STOP_H row, when the row wraps its chip.
+                if (now) {
+                    topMargin = context.dpi(4f)
+                    bottomMargin = context.dpi(4f)
+                }
             })
         }
 
