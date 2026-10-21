@@ -1,0 +1,315 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  Wander TV - Lumo's brain. API Gateway HTTP API -> Lambda (Python 3.12, arm64) -> Amazon Bedrock Converse
+  (forced tool use) + Bedrock Guardrails -> DynamoDB cache -> Amazon Polly -> CloudWatch logs, metrics, dashboard.
+
+Parameters:
+  ApiKey:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    MaxLength: 128
+    AllowedPattern: "[A-Za-z0-9_\\-]+"
+    Description: Shared secret the TV sends in the x-wander-key header (deploy.ps1 generates one).
+  ModelId:
+    Type: String
+    Default: eu.anthropic.claude-haiku-5-5
+    Description: Bedrock model ID or cross-Region inference profile ID. Must support Converse with tool use.
+  FallbackModelId:
+    Type: String
+    Default: eu.amazon.nova-2-lite-v1:0
+    Description: Tried once when the primary model is throttled, unavailable or not enabled. Empty to disable.
+  VoiceId:
+    Type: String
+    Default: Ivy
+    AllowedValues: [Ivy, Kevin, Justin, Joanna, Salli, Kimberly, Kendra, Joey, Matthew, Ruth, Stephen,
+                    Danielle, Gregory, Amy, Emma, Brian, Arthur, Olivia]
+    Description: Amazon Polly neural voice for Lumo (Ivy is a child voice).
+  FilterStrength:
+    Type: String
+    Default: HIGH
+    AllowedValues: [HIGH, MEDIUM, LOW]
+    Description: Guardrail strength for the family content filters. Prompt-attack filtering stays HIGH.
+  EnableGuardrail:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Set to false to run without Bedrock Guardrails (not recommended for families).
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90]
+
+Conditions:
+  UseGuardrail: !Equals [!Ref EnableGuardrail, "true"]
+  HasFallback: !Not [!Equals [!Ref FallbackModelId, ""]]
+
+Resources:
+  # ---------------------------------------------------------------- HTTP entry point
+  WanderApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Description: Wander TV -> Lumo (cards, quests, companion, voice)
+      FailOnWarnings: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
+  # ---------------------------------------------------------------- card + speech cache
+  CacheTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: app
+          Value: wander-tv
+
+  # ---------------------------------------------------------------- family safety
+  FamilyGuardrail:
+    Type: AWS::Bedrock::Guardrail
+    Properties:
+      Name: !Sub "${AWS::StackName}-family"
+      Description: Family-safe filters for Wander TV. Web page text is screened for prompt attacks.
+      BlockedInputMessaging: "Lumo can't help with this page. Let's wander somewhere brighter!"
+      BlockedOutputsMessaging: "Lumo would rather not say that. Let's explore something else!"
+      ContentPolicyConfig:
+        FiltersConfig:
+          - Type: SEXUAL
+            InputStrength: !Ref FilterStrength
+            OutputStrength: HIGH
+          - Type: VIOLENCE
+            InputStrength: !Ref FilterStrength
+            OutputStrength: HIGH
+          - Type: HATE
+            InputStrength: !Ref FilterStrength
+            OutputStrength: HIGH
+          - Type: INSULTS
+            InputStrength: !Ref FilterStrength
+            OutputStrength: HIGH
+          - Type: MISCONDUCT
+            InputStrength: !Ref FilterStrength
+            OutputStrength: HIGH
+          - Type: PROMPT_ATTACK
+            InputStrength: HIGH
+            OutputStrength: NONE
+      WordPolicyConfig:
+        ManagedWordListsConfig:
+          - Type: PROFANITY
+      Tags:
+        - Key: app
+          Value: wander-tv
+
+  FamilyGuardrailVersion:
+    Type: AWS::Bedrock::GuardrailVersion
+    Properties:
+      GuardrailIdentifier: !GetAtt FamilyGuardrail.GuardrailId
+      # Changing the description cuts a new immutable version; tying it to the strength keeps them in sync.
+      Description: !Sub "Wander TV family filters, input strength ${FilterStrength}"
+
+  # ---------------------------------------------------------------- Lumo
+  LumoLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-lumo"
+      RetentionInDays: !Ref LogRetentionDays
+
+  LumoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Lumo's brain for Wander TV (Bedrock + Guardrails + DynamoDB + Polly)
+      CodeUri: src/
+      Handler: app.handler
+      Runtime: python3.12
+      Architectures:
+        - arm64
+      MemorySize: 512
+      Timeout: 20
+      LoggingConfig:
+        LogFormat: Text
+        LogGroup: !Ref LumoLogGroup
+      Environment:
+        Variables:
+          API_KEY: !Ref ApiKey
+          MODEL_ID: !Ref ModelId
+          FALLBACK_MODEL_ID: !Ref FallbackModelId
+          VOICE_ID: !Ref VoiceId
+          TABLE_NAME: !Ref CacheTable
+          CACHE_TTL_DAYS: "7"
+          GUARDRAIL_ID: !If [UseGuardrail, !GetAtt FamilyGuardrailVersion.GuardrailId, ""]
+          GUARDRAIL_VERSION: !If [UseGuardrail, !GetAtt FamilyGuardrailVersion.Version, ""]
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: InvokeTheChosenModels
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource:
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${ModelId}"
+                - !If
+                  - HasFallback
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${FallbackModelId}"
+                  - !Ref AWS::NoValue
+                - !If
+                  - HasFallback
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${FallbackModelId}"
+                  - !Ref AWS::NoValue
+            - Sid: InvokeModelsOnlyThroughOurProfiles
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource:
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
+                - !Sub "arn:${AWS::Partition}:bedrock:::foundation-model/*"
+              Condition:
+                StringEquals:
+                  bedrock:InferenceProfileArn:
+                    - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}"
+                    - !If
+                      - HasFallback
+                      - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${FallbackModelId}"
+                      - !Ref AWS::NoValue
+            - Sid: ApplyTheFamilyGuardrail
+              Effect: Allow
+              Action:
+                - bedrock:ApplyGuardrail
+              Resource:
+                - !GetAtt FamilyGuardrail.GuardrailArn
+                - !Sub "${FamilyGuardrail.GuardrailArn}:*"
+            - Sid: LumosVoice
+              Effect: Allow
+              Action:
+                - polly:SynthesizeSpeech
+              Resource: "*"
+            - Sid: CardAndSpeechCache
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+              Resource: !GetAtt CacheTable.Arn
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WanderApi
+            Method: GET
+            Path: /health
+        Cards:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WanderApi
+            Method: POST
+            Path: /cards
+        QuestCheck:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WanderApi
+            Method: POST
+            Path: /quest/check
+        QuestNew:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WanderApi
+            Method: POST
+            Path: /quest/new
+        Companion:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WanderApi
+            Method: POST
+            Path: /companion
+        Speak:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WanderApi
+            Method: POST
+            Path: /speak
+      Tags:
+        app: wander-tv
+
+  # ---------------------------------------------------------------- operations
+  OpsDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}-lumo"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {"type": "text", "x": 0, "y": 0, "width": 24, "height": 2,
+             "properties": {"markdown": "## Wander TV - Lumo's brain\nTV -> API Gateway -> Lambda -> Bedrock (forced tool use + Guardrails) -> DynamoDB cache -> Polly. Metrics come from the Lambda's EMF log lines (namespace WanderTV)."}},
+            {"type": "metric", "x": 0, "y": 2, "width": 12, "height": 6,
+             "properties": {"title": "Latency by route (p90, ms)", "region": "${AWS::Region}", "view": "timeSeries", "stat": "p90", "period": 300,
+               "metrics": [[{"expression": "SEARCH('{WanderTV,route} MetricName=\"Latency\"', 'p90', 300)", "id": "lat"}]]}},
+            {"type": "metric", "x": 12, "y": 2, "width": 12, "height": 6,
+             "properties": {"title": "Requests by route", "region": "${AWS::Region}", "view": "timeSeries", "stat": "Sum", "period": 300,
+               "metrics": [[{"expression": "SEARCH('{WanderTV,route} MetricName=\"Requests\"', 'Sum', 300)", "id": "req"}]]}},
+            {"type": "metric", "x": 0, "y": 8, "width": 12, "height": 6,
+             "properties": {"title": "Cache hits, guardrail blocks, fallbacks, rejected evidence, errors", "region": "${AWS::Region}", "view": "timeSeries", "stat": "Sum", "period": 300,
+               "metrics": [
+                 ["WanderTV", "CacheHit", {"label": "Cache hits"}],
+                 ["WanderTV", "Blocked", {"label": "Guardrail blocks"}],
+                 ["WanderTV", "FallbackModel", {"label": "Fallback model used"}],
+                 ["WanderTV", "EvidenceRejected", {"label": "Evidence rejected"}],
+                 ["WanderTV", "Errors", {"label": "5xx answers"}]
+               ]}},
+            {"type": "metric", "x": 12, "y": 8, "width": 12, "height": 6,
+             "properties": {"title": "Bedrock + Polly time inside Lambda (ms)", "region": "${AWS::Region}", "view": "timeSeries", "period": 300,
+               "metrics": [
+                 ["WanderTV", "ModelLatency", {"stat": "Average", "label": "average"}],
+                 ["WanderTV", "ModelLatency", {"stat": "p90", "label": "p90"}]
+               ]}},
+            {"type": "metric", "x": 0, "y": 14, "width": 12, "height": 6,
+             "properties": {"title": "Lambda health", "region": "${AWS::Region}", "view": "timeSeries", "period": 300,
+               "metrics": [
+                 ["AWS/Lambda", "Invocations", "FunctionName", "${LumoFunction}", {"stat": "Sum"}],
+                 ["AWS/Lambda", "Errors", "FunctionName", "${LumoFunction}", {"stat": "Sum"}],
+                 ["AWS/Lambda", "Throttles", "FunctionName", "${LumoFunction}", {"stat": "Sum"}],
+                 ["AWS/Lambda", "Duration", "FunctionName", "${LumoFunction}", {"stat": "p90", "yAxis": "right"}]
+               ]}},
+            {"type": "metric", "x": 12, "y": 14, "width": 12, "height": 6,
+             "properties": {"title": "API Gateway", "region": "${AWS::Region}", "view": "timeSeries", "period": 300,
+               "metrics": [
+                 ["AWS/ApiGateway", "Count", "ApiId", "${WanderApi}", {"stat": "Sum"}],
+                 ["AWS/ApiGateway", "4xx", "ApiId", "${WanderApi}", {"stat": "Sum"}],
+                 ["AWS/ApiGateway", "5xx", "ApiId", "${WanderApi}", {"stat": "Sum"}]
+               ]}}
+          ]
+        }
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the TV (gradle property wander.apiUrl, or adb --es api_url)
+    Value: !Sub "https://${WanderApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}"
+  ModelId:
+    Description: Bedrock model or inference profile Lumo uses
+    Value: !Ref ModelId
+  FunctionName:
+    Value: !Ref LumoFunction
+  CacheTableName:
+    Value: !Ref CacheTable
+  GuardrailId:
+    Value: !GetAtt FamilyGuardrail.GuardrailId
+  GuardrailVersion:
+    Value: !GetAtt FamilyGuardrailVersion.Version
+  DashboardUrl:
+    Description: CloudWatch dashboard for Lumo
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${OpsDashboard}"
+  LogGroup:
+    Value: !Ref LumoLogGroup

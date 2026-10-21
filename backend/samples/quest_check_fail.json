@@ -1,0 +1,17 @@
+{
+  "quest": {
+    "id": "speed-safari",
+    "title": "Speed Safari",
+    "prompt": "Find three animals that are faster than a car on the highway (over 100 km/h, 62 mph).",
+    "rubric": "Counts: an animal whose top speed stated on the page is over 100 km/h or 62 mph, for example cheetah, peregrine falcon, sailfish, pronghorn. Does not count: animals without a stated speed over 100 km/h, vehicles, fictional animals.",
+    "goal": 3
+  },
+  "page": {
+    "url": "https://simple.wikipedia.org/wiki/Box_turtle",
+    "title": "Box turtle",
+    "text": "Box turtles are small turtles that live in North America. They walk slowly through forests and meadows.\nA box turtle can pull its head and legs inside its shell and close it tight like a box.\nThey eat worms, berries, mushrooms and insects. Some box turtles live for more than 50 years."
+  },
+  "found": [
+    "Cheetah"
+  ]
+}

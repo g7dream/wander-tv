@@ -1,0 +1,16 @@
+{
+  "signal": {
+    "reason": "RAPID_HOPPING",
+    "headline": "We've hopped 7 pages in 4 minutes. I know that dizzy feeling.",
+    "detail": "7 pages · 4 min · ~12 s each"
+  },
+  "stats": {
+    "sessionMinutes": 14,
+    "pagesLast5Min": 7,
+    "avgDwellSec": 12,
+    "scrollSecondsNoClick": 20,
+    "sameSiteRepeats": 1,
+    "localHour": 19,
+    "pagesTotal": 22
+  }
+}
