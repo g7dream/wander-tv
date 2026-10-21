@@ -18,3 +18,4 @@ __pycache__/
 backend/deploy-output.json
 video/out/
 video/raw/
+.claude/worktrees/

@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <title>Wander TV title card</title>
+  <defs>
+    <style>
+      @font-face { font-family: "Young Serif"; src: url("../app/src/main/assets/fonts/YoungSerif-Regular.ttf"); }
+      @font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; src: url("../app/src/main/assets/fonts/AtkinsonHyperlegible-Regular.ttf"); }
+      @font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; src: url("../app/src/main/assets/fonts/AtkinsonHyperlegible-Bold.ttf"); }
+      .d { font-family: "Young Serif", Georgia, "Times New Roman", serif; }
+      .b { font-family: "Atkinson Hyperlegible", "Segoe UI", Helvetica, Arial, sans-serif; }
+    </style>
+    <radialGradient id="glow" cx="800" cy="270" r="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB547" stop-opacity="0.42"/>
+      <stop offset="0.18" stop-color="#FFB547" stop-opacity="0.16"/>
+      <stop offset="0.5" stop-color="#FF5D8F" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#120E1C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bulb" cx="0.42" cy="0.38" r="0.7">
+      <stop offset="0" stop-color="#FFF3D6"/>
+      <stop offset="0.55" stop-color="#FFD27F"/>
+      <stop offset="1" stop-color="#FFB547"/>
+    </radialGradient>
+    <filter id="rim" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3.2"/>
+      <feComponentTransfer><feFuncA type="linear" slope="1.6"/></feComponentTransfer>
+    </filter>
+    <!-- moth silhouette, centered on 0,0; fill and stroke come from the <use> -->
+    <symbol id="moth" viewBox="-70 -60 140 112" overflow="visible">
+      <g id="half">
+        <path d="M-3,-12 C-9,-26 -18,-40 -28,-50" fill="none" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M-6,-20 l-4.5,-0.3 M-9,-26 l-4.5,-0.3 M-12.5,-31.5 l-4.5,-0.3 M-16.5,-37 l-4.2,-0.3 M-20.5,-42 l-3.8,-0.3 M-24.5,-46.5 l-3,-0.3 M-6,-20 l1.4,-4.3 M-9,-26 l1.4,-4.3 M-12.5,-31.5 l1.4,-4.3 M-16.5,-37 l1.3,-4 M-20.5,-42 l1.2,-3.6" fill="none" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M-3,6 C-14,12 -32,22 -36,34 C-32,44 -16,40 -4,26 Z" stroke="none"/>
+        <path d="M-4,-8 C-22,-22 -50,-26 -66,-16 C-70,-4 -60,14 -46,28 C-30,24 -14,18 -4,12 Z" stroke="none"/>
+      </g>
+      <use href="#half" transform="scale(-1,1)"/>
+      <ellipse cx="0" cy="18" rx="7.5" ry="17" stroke="none"/>
+      <circle cx="0" cy="-3" r="11" stroke="none"/>
+      <g stroke="none"><circle cx="-9" cy="-9" r="4"/><circle cx="9" cy="-9" r="4"/><circle cx="-11" cy="0" r="4"/><circle cx="11" cy="0" r="4"/></g>
+      <circle cx="0" cy="-15" r="7.5" stroke="none"/>
+    </symbol>
+  </defs>
+
+  <rect width="1600" height="900" fill="#120E1C"/>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+
+  <!-- dust motes in the lamp light -->
+  <g fill="#FFD27F">
+    <circle cx="610" cy="180" r="2.4" opacity="0.55"/>
+    <circle cx="690" cy="410" r="1.8" opacity="0.45"/>
+    <circle cx="1010" cy="150" r="2.2" opacity="0.5"/>
+    <circle cx="1080" cy="360" r="1.6" opacity="0.4"/>
+    <circle cx="540" cy="300" r="1.5" opacity="0.4"/>
+    <circle cx="930" cy="430" r="2" opacity="0.35"/>
+    <circle cx="760" cy="120" r="1.6" opacity="0.45"/>
+    <circle cx="1180" cy="240" r="1.4" opacity="0.3"/>
+    <circle cx="420" cy="220" r="1.4" opacity="0.3"/>
+    <circle cx="860" cy="70" r="1.8" opacity="0.35"/>
+    <circle cx="1260" cy="120" r="1.2" opacity="0.25"/>
+    <circle cx="350" cy="380" r="1.2" opacity="0.25"/>
+  </g>
+
+  <!-- the lamp -->
+  <circle cx="800" cy="270" r="130" fill="#FFB547" opacity="0.08"/>
+  <circle cx="800" cy="270" r="74" fill="#FFB547" opacity="0.16"/>
+  <circle cx="800" cy="270" r="36" fill="url(#bulb)"/>
+
+  <!-- the circling path -->
+  <ellipse cx="800" cy="270" rx="230" ry="78" transform="rotate(-8 800 270)" fill="none" stroke="#F7EFE2" stroke-width="2.4" stroke-dasharray="1.5 11" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- the moth, mid-circle: a dark silhouette with a lamp rim -->
+  <g transform="translate(1024 226) rotate(16)">
+    <use href="#moth" x="-80" y="-64" width="160" height="128" fill="#FFB547" stroke="#FFB547" filter="url(#rim)"/>
+    <use href="#moth" x="-80" y="-64" width="160" height="128" fill="#1B1529" stroke="#1B1529"/>
+  </g>
+
+  <text class="d" x="800" y="575" font-size="148" fill="#F7EFE2" text-anchor="middle">Wander <tspan fill="#FFB547">TV</tspan></text>
+  <text class="d" x="800" y="660" font-size="46" fill="#FFB547" text-anchor="middle">Browse together. Wander well.</text>
+  <text class="b" x="800" y="728" font-size="28" fill="#B9AECC" text-anchor="middle">A couch-first web browser for the whole family</text>
+
+  <g>
+    <circle cx="752" cy="800" r="8" fill="#FFB547"/>
+    <circle cx="784" cy="800" r="8" fill="#FF5D8F"/>
+    <circle cx="816" cy="800" r="8" fill="#3DDC97"/>
+    <circle cx="848" cy="800" r="8" fill="#5AB4FF"/>
+  </g>
+</svg>

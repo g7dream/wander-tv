@@ -1,0 +1,82 @@
+{
+  "_comment": "Edit list for video/make_video.ps1. Times are seconds. Clip 'file' names resolve in video/raw/, VO ids resolve to video/vo/<id>.mp3, other relative paths resolve from the repo root. Scene 'in'/'out' are source times; 'at'/'from'/'to' are relative to the start of that scene in the final cut (after 'speed'). See video/SCRIPT.md.",
+  "fps": 30,
+  "clip_volume": 0.25,
+  "max_seconds": 178,
+  "font": "app/src/main/assets/fonts/AtkinsonHyperlegible-Bold.ttf",
+  "lines": "video/vo/lines.json",
+
+  "title_card": {
+    "image": "docs/title-card.png", "seconds": 3,
+    "vo": [ { "id": "s01", "at": 0.5 } ]
+  },
+
+  "scenes": [
+    {
+      "id": "s01", "file": "s01-home.mp4", "in": 0, "out": 7,
+      "badge": "Recorded on a real Fire TV",
+      "captions": [ { "text": "Meet Lumo", "from": 0.6, "to": 6.4 } ]
+    },
+    {
+      "id": "s02", "file": "s02-remote.mp4", "in": 0, "out": 14,
+      "vo": [ { "id": "s02", "at": 0.4 } ],
+      "captions": [ { "text": "Typing with a remote: one letter at a time", "from": 1.0, "to": 13.2 } ]
+    },
+    {
+      "id": "s03", "file": "s03-join.mp4", "in": 0, "out": 26,
+      "vo": [ { "id": "s03", "at": 0.5 } ],
+      "captions": [
+        { "text": "Scan the QR: your phone is the keyboard", "from": 1.0, "to": 11.5 },
+        { "text": "Up to 4 phones, no app to install", "from": 12.5, "to": 25.2 }
+      ]
+    },
+    {
+      "id": "s04", "file": "s04-cards.mp4", "in": 0, "out": 26,
+      "vo": [ { "id": "s04", "at": 0.5 } ],
+      "sfx": [ { "file": "video/sfx/polly-card.mp3", "at": 17.0, "volume": 1.0, "optional": true } ],
+      "captions": [
+        { "text": "Make it cards: a long page becomes big cards", "from": 1.0, "to": 14.5 },
+        { "text": "Read aloud with Amazon Polly", "from": 16.5, "to": 25.2 }
+      ],
+      "blur": []
+    },
+    {
+      "id": "s05a", "file": "s05-quest.mp4", "in": 0, "out": 20,
+      "vo": [ { "id": "s05a", "at": 0.4 }, { "id": "s05b", "at": 9.6 } ],
+      "captions": [
+        { "text": "Family quest: Speed Safari", "from": 0.8, "to": 9.4 },
+        { "text": "Checked on AWS, with proof from the page", "from": 10.4, "to": 19.6 }
+      ]
+    },
+    {
+      "id": "s05b", "file": "s05-quest.mp4", "in": 40, "out": 64,
+      "vo": [ { "id": "s05c", "at": 6.0 }, { "id": "s05d", "at": 16.0 } ],
+      "captions": [
+        { "text": "Not quite? Lumo says why", "from": 5.6, "to": 11.5 },
+        { "text": "+100 per find, +50 to finish", "from": 15.5, "to": 23.4 }
+      ]
+    },
+    {
+      "id": "s06a", "file": "s06-drift.mp4", "in": 0, "out": 20, "speed": 2.0,
+      "vo": [ { "id": "s06a", "at": 0.4 } ],
+      "captions": [ { "text": "Lumo notices drift from timing alone, on the TV", "from": 0.6, "to": 9.6 } ]
+    },
+    {
+      "id": "s06b", "file": "s06-drift.mp4", "in": 20, "out": 37,
+      "vo": [ { "id": "s06b", "at": 0.3 }, { "id": "s06c", "at": 7.5 } ],
+      "captions": [
+        { "text": "A quest, or a curious detour", "from": 0.8, "to": 7.2 },
+        { "text": "Each \"we're fine\" = more patience next time", "from": 7.8, "to": 16.4 }
+      ]
+    },
+    {
+      "id": "s07", "image": "docs/architecture.png", "seconds": 19.5, "kenburns": true,
+      "vo": [ { "id": "s07", "at": 0.5 } ]
+    }
+  ],
+
+  "end_card": {
+    "image": "docs/end-card.png", "seconds": 3.5,
+    "vo": [ { "id": "s08", "at": 0.1 } ]
+  }
+}

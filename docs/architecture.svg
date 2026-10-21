@@ -1,0 +1,358 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <title>How Wander TV works</title>
+  <desc>Phones and the remote drive the Fire TV app over the home Wi-Fi. Page text crosses to AWS only when someone presses Make it cards or submits a quest. AWS side: API Gateway HTTP API, Lambda (Python), Amazon Bedrock with Guardrails, DynamoDB, Amazon Polly, CloudWatch.</desc>
+  <defs>
+    <style>
+      @font-face { font-family: "Young Serif"; src: url("../app/src/main/assets/fonts/YoungSerif-Regular.ttf"); }
+      @font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; src: url("../app/src/main/assets/fonts/AtkinsonHyperlegible-Regular.ttf"); }
+      @font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; src: url("../app/src/main/assets/fonts/AtkinsonHyperlegible-Bold.ttf"); }
+      .d { font-family: "Young Serif", Georgia, "Times New Roman", serif; }
+      .b { font-family: "Atkinson Hyperlegible", "Segoe UI", Helvetica, Arial, sans-serif; }
+      .t { font-family: "Atkinson Hyperlegible", "Segoe UI", Helvetica, Arial, sans-serif; font-weight: 700; font-size: 21px; fill: #F7EFE2; }
+      .s { font-family: "Atkinson Hyperlegible", "Segoe UI", Helvetica, Arial, sans-serif; font-size: 16px; fill: #B9AECC; }
+      .eyebrow { font-family: "Atkinson Hyperlegible", "Segoe UI", Helvetica, Arial, sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 2.4px; }
+      .box { fill: #261E3A; stroke: #3A2F57; stroke-width: 1.5; }
+    </style>
+    <radialGradient id="lampGlow" cx="0.12" cy="0.02" r="0.75">
+      <stop offset="0" stop-color="#FFB547" stop-opacity="0.20"/>
+      <stop offset="0.45" stop-color="#FFB547" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#FFB547" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="tvGlow" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#FFB547" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#FFB547" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="skyGlow" cx="0.5" cy="0.3" r="0.7">
+      <stop offset="0" stop-color="#5AB4FF" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#5AB4FF" stop-opacity="0"/>
+    </radialGradient>
+    <marker id="arrSky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5AB4FF"/>
+    </marker>
+    <marker id="arrMuted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B9AECC"/>
+    </marker>
+    <symbol id="moth" viewBox="-70 -60 140 112" overflow="visible">
+      <g id="mothHalf">
+        <path d="M-3,-12 C-9,-26 -18,-40 -28,-50" fill="none" stroke="#E9DCC6" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M-6,-20 l-4.5,-0.3 M-9,-26 l-4.5,-0.3 M-12.5,-31.5 l-4.5,-0.3 M-16.5,-37 l-4.2,-0.3 M-20.5,-42 l-3.8,-0.3 M-24.5,-46.5 l-3,-0.3 M-6,-20 l1.4,-4.3 M-9,-26 l1.4,-4.3 M-12.5,-31.5 l1.4,-4.3 M-16.5,-37 l1.3,-4 M-20.5,-42 l1.2,-3.6" stroke="#E9DCC6" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M-3,6 C-14,12 -32,22 -36,34 C-32,44 -16,40 -4,26 Z" fill="#E2D2BA"/>
+        <path d="M-4,-8 C-22,-22 -50,-26 -66,-16 C-70,-4 -60,14 -46,28 C-30,24 -14,18 -4,12 Z" fill="#F7EFE2"/>
+        <path d="M-12,-6 C-26,-12 -44,-14 -56,-10" fill="none" stroke="#E2D2BA" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="-38" cy="2" r="8" fill="#FFB547"/>
+        <circle cx="-38" cy="2" r="3.2" fill="#120E1C"/>
+      </g>
+      <use href="#mothHalf" transform="scale(-1,1)"/>
+      <ellipse cx="0" cy="18" rx="7.5" ry="17" fill="#E8A23C"/>
+      <path d="M-6.5,12 H6.5 M-7,19 H7 M-6,26 H6" stroke="#B87420" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="0" cy="-3" r="11" fill="#FFC56B"/>
+      <g fill="#FFC56B"><circle cx="-9" cy="-9" r="4"/><circle cx="9" cy="-9" r="4"/><circle cx="-11" cy="0" r="4"/><circle cx="11" cy="0" r="4"/></g>
+      <circle cx="0" cy="-15" r="7.5" fill="#FFB547"/>
+      <circle cx="-3.2" cy="-16" r="2" fill="#120E1C"/>
+      <circle cx="3.2" cy="-16" r="2" fill="#120E1C"/>
+    </symbol>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1600" height="900" fill="#120E1C"/>
+  <rect width="1600" height="900" fill="url(#lampGlow)"/>
+  <g fill="#FFB547">
+    <circle cx="300" cy="44" r="2" opacity="0.5"/>
+    <circle cx="420" cy="92" r="1.5" opacity="0.35"/>
+    <circle cx="610" cy="58" r="2.2" opacity="0.3"/>
+    <circle cx="160" cy="128" r="1.6" opacity="0.4"/>
+    <circle cx="780" cy="30" r="1.4" opacity="0.3"/>
+    <circle cx="1200" cy="60" r="1.6" opacity="0.25"/>
+    <circle cx="1390" cy="104" r="2" opacity="0.3"/>
+  </g>
+
+  <!-- header -->
+  <text class="d" x="40" y="80" font-size="42" fill="#F7EFE2">How Wander TV works</text>
+  <text class="b" x="40" y="114" font-size="19" fill="#B9AECC">Phones and the remote drive the browser over your Wi-Fi. The cloud sees a page only when someone asks.</text>
+  <ellipse cx="1500" cy="70" rx="62" ry="26" fill="none" stroke="#FFB547" stroke-width="1.6" stroke-dasharray="2 7" stroke-linecap="round" opacity="0.7"/>
+  <circle cx="1500" cy="70" r="9" fill="#FFB547"/>
+  <circle cx="1500" cy="70" r="20" fill="#FFB547" opacity="0.15"/>
+  <use href="#moth" x="-24" y="-20" width="48" height="40" transform="translate(1558 56) rotate(18)"/>
+
+  <!-- ===== the living room (privacy boundary) ===== -->
+  <rect x="24" y="136" width="1016" height="664" rx="28" fill="none" stroke="#FFB547" stroke-width="2" stroke-dasharray="11 9" opacity="0.75"/>
+  <text class="eyebrow" x="48" y="172" fill="#FFB547">YOUR LIVING ROOM</text>
+
+  <!-- phones -->
+  <text class="b" x="48" y="200" font-size="17" font-weight="700" fill="#F7EFE2">Up to 4 phones, no install</text>
+  <g id="phones">
+    <!-- Leo / Sun -->
+    <g transform="translate(48 214)">
+      <rect width="112" height="168" rx="18" fill="#1B1529" stroke="#FFB547" stroke-width="3"/>
+      <rect x="44" y="8" width="24" height="4" rx="2" fill="#3A2F57"/>
+      <circle cx="19" cy="27" r="6" fill="#FFB547"/>
+      <text class="b" x="31" y="32" font-size="15" font-weight="700" fill="#F7EFE2">Leo</text>
+      <rect x="10" y="42" width="92" height="80" rx="12" fill="#261E3A"/>
+      <path d="M24,104 C36,90 50,96 60,78 C66,68 76,64 86,60" fill="none" stroke="#FFB547" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1 6"/>
+      <circle cx="86" cy="60" r="5" fill="#FFB547"/>
+      <rect x="10" y="132" width="92" height="24" rx="12" fill="#120E1C" stroke="#3A2F57"/>
+      <text class="b" x="22" y="149" font-size="13" fill="#B9AECC">cheetah</text>
+    </g>
+    <!-- Maya / Berry -->
+    <g transform="translate(176 214)">
+      <rect width="112" height="168" rx="18" fill="#1B1529" stroke="#FF5D8F" stroke-width="3"/>
+      <rect x="44" y="8" width="24" height="4" rx="2" fill="#3A2F57"/>
+      <circle cx="19" cy="27" r="6" fill="#FF5D8F"/>
+      <text class="b" x="31" y="32" font-size="15" font-weight="700" fill="#F7EFE2">Maya</text>
+      <rect x="10" y="42" width="92" height="80" rx="12" fill="#261E3A"/>
+      <path d="M22,62 C40,58 46,80 62,84 C74,87 80,98 88,104" fill="none" stroke="#FF5D8F" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1 6"/>
+      <circle cx="88" cy="104" r="5" fill="#FF5D8F"/>
+      <rect x="10" y="132" width="92" height="24" rx="12" fill="#120E1C" stroke="#3A2F57"/>
+      <text class="b" x="22" y="149" font-size="13" fill="#B9AECC">falcon</text>
+    </g>
+    <!-- Nana / Mint -->
+    <g transform="translate(48 398)">
+      <rect width="112" height="168" rx="18" fill="#1B1529" stroke="#3DDC97" stroke-width="3"/>
+      <rect x="44" y="8" width="24" height="4" rx="2" fill="#3A2F57"/>
+      <circle cx="19" cy="27" r="6" fill="#3DDC97"/>
+      <text class="b" x="31" y="32" font-size="15" font-weight="700" fill="#F7EFE2">Nana</text>
+      <rect x="10" y="42" width="92" height="80" rx="12" fill="#261E3A"/>
+      <path d="M56,108 C56,92 56,74 56,56" fill="none" stroke="#3DDC97" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1 6"/>
+      <circle cx="56" cy="56" r="5" fill="#3DDC97"/>
+      <rect x="10" y="132" width="92" height="24" rx="12" fill="#120E1C" stroke="#3A2F57"/>
+      <text class="b" x="22" y="149" font-size="13" fill="#B9AECC">saturn</text>
+    </g>
+    <!-- Sam / Sky -->
+    <g transform="translate(176 398)">
+      <rect width="112" height="168" rx="18" fill="#1B1529" stroke="#5AB4FF" stroke-width="3"/>
+      <rect x="44" y="8" width="24" height="4" rx="2" fill="#3A2F57"/>
+      <circle cx="19" cy="27" r="6" fill="#5AB4FF"/>
+      <text class="b" x="31" y="32" font-size="15" font-weight="700" fill="#F7EFE2">Sam</text>
+      <rect x="10" y="42" width="92" height="80" rx="12" fill="#261E3A"/>
+      <circle cx="56" cy="82" r="13" fill="none" stroke="#5AB4FF" stroke-width="2.5" opacity="0.6"/>
+      <circle cx="56" cy="82" r="5" fill="#5AB4FF"/>
+      <rect x="10" y="132" width="92" height="24" rx="12" fill="#120E1C" stroke="#3A2F57"/>
+      <text class="b" x="22" y="149" font-size="13" fill="#B9AECC">tap</text>
+    </g>
+  </g>
+  <text class="s" x="48" y="592">Scan the QR on the TV: a web page</text>
+  <text class="s" x="48" y="613">becomes keyboard + touchpad.</text>
+
+  <!-- remote -->
+  <g transform="translate(56 636)">
+    <rect width="44" height="140" rx="22" fill="#261E3A" stroke="#3A2F57" stroke-width="1.5"/>
+    <circle cx="22" cy="30" r="14" fill="none" stroke="#F7EFE2" stroke-width="2"/>
+    <circle cx="22" cy="30" r="5" fill="#F7EFE2"/>
+    <circle cx="13" cy="66" r="4" fill="#B9AECC"/>
+    <circle cx="31" cy="66" r="4" fill="#B9AECC"/>
+    <circle cx="13" cy="84" r="4" fill="#B9AECC"/>
+    <circle cx="31" cy="84" r="4" fill="#B9AECC"/>
+    <circle cx="22" cy="106" r="4" fill="#FFB547"/>
+  </g>
+  <text class="b" x="118" y="664" font-size="18" font-weight="700" fill="#F7EFE2">The remote</text>
+  <text class="s" x="118" y="688">D-pad drives the same</text>
+  <text class="s" x="118" y="709">cursor. Menu = Lumo,</text>
+  <text class="s" x="118" y="730">Play/Pause = cards.</text>
+
+  <!-- phones -> TV bundle -->
+  <g fill="none" stroke-width="3" stroke-linecap="round">
+    <path d="M292,382 C352,382 350,252 410,252" stroke="#FFB547"/>
+    <path d="M292,387 C356,387 354,261 410,261" stroke="#FF5D8F"/>
+    <path d="M292,392 C360,392 358,270 410,270" stroke="#3DDC97"/>
+    <path d="M292,397 C364,397 362,279 410,279" stroke="#5AB4FF"/>
+  </g>
+  <g transform="translate(342 438)" fill="none" stroke="#FFB547" stroke-width="2.4" stroke-linecap="round">
+    <path d="M-16,-6 A23,23 0 0 1 16,-6"/>
+    <path d="M-10,1 A14,14 0 0 1 10,1"/>
+    <circle cx="0" cy="8" r="2.6" fill="#FFB547" stroke="none"/>
+  </g>
+  <text class="b" x="342" y="474" font-size="15" font-weight="700" fill="#FFB547" text-anchor="middle">local Wi-Fi</text>
+  <text class="b" x="342" y="494" font-size="15" font-weight="700" fill="#FFB547" text-anchor="middle">WebSocket</text>
+  <text class="b" x="342" y="514" font-size="14" fill="#B9AECC" text-anchor="middle">port 8080</text>
+
+  <!-- ===== the TV ===== -->
+  <rect x="392" y="150" width="580" height="558" rx="24" fill="#1B1529" stroke="#3A2F57" stroke-width="6"/>
+  <rect x="392" y="150" width="580" height="558" rx="24" fill="url(#tvGlow)"/>
+  <path d="M640,711 L724,711 L740,738 L624,738 Z" fill="#261E3A" stroke="#3A2F57" stroke-width="2"/>
+  <text class="d" x="414" y="192" font-size="28" fill="#F7EFE2">Fire TV app</text>
+  <text class="b" x="950" y="190" font-size="16" fill="#B9AECC" text-anchor="end">Fire OS · Kotlin · plain Android Views</text>
+  <line x1="414" y1="208" x2="950" y2="208" stroke="#3A2F57" stroke-width="1.5"/>
+
+  <!-- couchlink -->
+  <rect class="box" x="412" y="222" width="540" height="88" rx="16"/>
+  <rect x="412" y="236" width="4" height="60" rx="2" fill="#FFB547"/>
+  <text class="t" x="430" y="254">couchlink server</text>
+  <text class="s" x="430" y="278">Zero-dependency HTTP + WebSocket on a plain socket.</text>
+  <text class="s" x="430" y="298">Serves the phone page, seats up to 4 players.</text>
+  <g transform="translate(906 236)">
+    <rect width="32" height="32" rx="9" fill="#FFB547" opacity="0.16"/>
+    <circle cx="12" cy="16" r="6.5" fill="none" stroke="#FFB547" stroke-width="2.4"/>
+    <circle cx="20" cy="16" r="6.5" fill="none" stroke="#FFB547" stroke-width="2.4"/>
+  </g>
+
+  <!-- browser -->
+  <rect class="box" x="412" y="324" width="260" height="90" rx="16"/>
+  <text class="t" x="430" y="356">Browser</text>
+  <text class="s" x="430" y="380">WebView + shared cursor</text>
+  <text class="s" x="430" y="400">Readability.js page text</text>
+  <g transform="translate(626 338)">
+    <rect width="32" height="32" rx="9" fill="#5AB4FF" opacity="0.16"/>
+    <rect x="6" y="8" width="20" height="16" rx="3" fill="none" stroke="#5AB4FF" stroke-width="2.2"/>
+    <line x1="6" y1="13" x2="26" y2="13" stroke="#5AB4FF" stroke-width="2"/>
+    <path d="M17,16 L17,27 L20,24 L23,29 L25,28 L22,23 L26,23 Z" fill="#F7EFE2"/>
+  </g>
+
+  <!-- cards -->
+  <rect class="box" x="692" y="324" width="260" height="90" rx="16"/>
+  <text class="t" x="710" y="356">Make it cards</text>
+  <text class="s" x="710" y="380">3-5 field-guide cards</text>
+  <text class="s" x="710" y="400">Lumo reads them aloud</text>
+  <g transform="translate(906 338)">
+    <rect width="32" height="32" rx="9" fill="#FFB547" opacity="0.16"/>
+    <rect x="9" y="6" width="15" height="20" rx="3" fill="none" stroke="#B9AECC" stroke-width="2" transform="rotate(-12 16 16)"/>
+    <rect x="10" y="7" width="15" height="20" rx="3" fill="#261E3A" stroke="#FFB547" stroke-width="2.2" transform="rotate(8 17 17)"/>
+  </g>
+
+  <!-- lumo -->
+  <rect class="box" x="412" y="428" width="260" height="90" rx="16"/>
+  <text class="t" x="430" y="460">Lumo, the moth</text>
+  <text class="s" x="430" y="484">4 moods and a voice</text>
+  <text class="s" x="430" y="504">offers, never shames</text>
+  <g transform="translate(626 442)">
+    <rect width="32" height="32" rx="9" fill="#FFB547" opacity="0.16"/>
+    <use href="#moth" x="3" y="5" width="26" height="22"/>
+  </g>
+
+  <!-- quests -->
+  <rect class="box" x="692" y="428" width="260" height="90" rx="16"/>
+  <text class="t" x="710" y="460">Quest engine</text>
+  <text class="s" x="710" y="484">family scoreboard</text>
+  <text class="s" x="710" y="504">evidence on screen</text>
+  <g transform="translate(906 442)">
+    <rect width="32" height="32" rx="9" fill="#FF5D8F" opacity="0.16"/>
+    <path d="M16,5 L19.2,12.2 L27,12.8 L21,17.9 L22.9,25.6 L16,21.5 L9.1,25.6 L11,17.9 L5,12.8 L12.8,12.2 Z" fill="#FF5D8F"/>
+  </g>
+
+  <!-- drift -->
+  <rect x="412" y="532" width="260" height="90" rx="16" fill="#261E3A" stroke="#3DDC97" stroke-width="2"/>
+  <text class="t" x="430" y="564">Drift detector</text>
+  <text class="s" x="430" y="588">timing only, on the TV</text>
+  <text class="s" x="430" y="608">adapts to each household</text>
+  <g transform="translate(626 546)">
+    <rect width="32" height="32" rx="9" fill="#3DDC97" opacity="0.16"/>
+    <circle cx="16" cy="18" r="9" fill="none" stroke="#3DDC97" stroke-width="2.2"/>
+    <line x1="16" y1="18" x2="16" y2="12.5" stroke="#3DDC97" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="16" y1="18" x2="20" y2="20" stroke="#3DDC97" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="13" y="4.5" width="6" height="3.5" rx="1.5" fill="#3DDC97"/>
+  </g>
+
+  <!-- offline -->
+  <rect class="box" x="692" y="532" width="260" height="90" rx="16"/>
+  <text class="t" x="710" y="564">Works offline</text>
+  <text class="s" x="710" y="588">on-device cards, quest</text>
+  <text class="s" x="710" y="608">checks and Lumo's lines</text>
+  <g transform="translate(906 546)">
+    <rect width="32" height="32" rx="9" fill="#3DDC97" opacity="0.16"/>
+    <rect x="9" y="9" width="14" height="14" rx="3" fill="none" stroke="#3DDC97" stroke-width="2.2"/>
+    <path d="M12,5 V9 M16,5 V9 M20,5 V9 M12,23 V27 M16,23 V27 M20,23 V27 M5,12 H9 M5,16 H9 M5,20 H9 M23,12 H27 M23,16 H27 M23,20 H27" stroke="#3DDC97" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+
+  <!-- AiClient strip -->
+  <rect x="412" y="638" width="540" height="54" rx="27" fill="#120E1C" stroke="#5AB4FF" stroke-width="1.8"/>
+  <text class="b" x="682" y="671" font-size="17" text-anchor="middle" fill="#B9AECC"><tspan font-weight="700" fill="#5AB4FF">AiClient</tspan>  ·  HTTPS  ·  4-10 s timeouts, then on-device fallback</text>
+
+  <!-- TV <-> AWS -->
+  <path d="M955,665 H1066 V273 H1116" fill="none" stroke="#5AB4FF" stroke-width="3" stroke-linejoin="round" marker-start="url(#arrSky)" marker-end="url(#arrSky)"/>
+  <text class="b" x="1088" y="470" font-size="15" font-weight="700" fill="#5AB4FF" text-anchor="middle" transform="rotate(-90 1088 470)">HTTPS · only when asked</text>
+
+  <!-- privacy pill -->
+  <rect x="92" y="778" width="880" height="44" rx="22" fill="#120E1C" stroke="#FFB547" stroke-width="2"/>
+  <text class="b" x="532" y="806" font-size="18" text-anchor="middle" fill="#F7EFE2"><tspan font-weight="700" fill="#FFB547" letter-spacing="1.5">PRIVACY BOUNDARY</tspan>   Page text crosses only when you press Make it cards or submit a quest</text>
+
+  <!-- ===== AWS ===== -->
+  <rect x="1100" y="150" width="476" height="650" rx="24" fill="#1B1529" stroke="#3A2F57" stroke-width="2"/>
+  <rect x="1100" y="150" width="476" height="650" rx="24" fill="url(#skyGlow)"/>
+  <text class="d" x="1120" y="192" font-size="28" fill="#F7EFE2">AWS</text>
+  <text class="b" x="1556" y="190" font-size="16" fill="#B9AECC" text-anchor="end">one SAM stack · eu-central-1</text>
+  <line x1="1120" y1="208" x2="1556" y2="208" stroke="#3A2F57" stroke-width="1.5"/>
+
+  <!-- API Gateway -->
+  <rect class="box" x="1120" y="224" width="436" height="98" rx="16"/>
+  <rect x="1120" y="238" width="4" height="70" rx="2" fill="#5AB4FF"/>
+  <text class="t" x="1138" y="256">API Gateway · HTTP API</text>
+  <text class="s" x="1138" y="281">/cards · /quest/check · /quest/new</text>
+  <text class="s" x="1138" y="302">/companion · /speak · shared-key header</text>
+  <g transform="translate(1510 238)">
+    <rect width="32" height="32" rx="9" fill="#5AB4FF" opacity="0.16"/>
+    <path d="M7,12 H24 M20,8 L24,12 L20,16 M25,21 H8 M12,17 L8,21 L12,25" fill="none" stroke="#5AB4FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <line x1="1338" y1="322" x2="1338" y2="340" stroke="#B9AECC" stroke-width="2" marker-end="url(#arrMuted)"/>
+
+  <!-- Lambda -->
+  <rect class="box" x="1120" y="344" width="436" height="98" rx="16"/>
+  <rect x="1120" y="358" width="4" height="70" rx="2" fill="#FFB547"/>
+  <text class="t" x="1138" y="376">AWS Lambda · Python 3.12</text>
+  <text class="s" x="1138" y="401">Trims page text, asks the model, then checks</text>
+  <text class="s" x="1138" y="422">the evidence quote really is on the page.</text>
+  <g transform="translate(1510 358)">
+    <rect width="32" height="32" rx="9" fill="#FFB547" opacity="0.16"/>
+    <path d="M10,7 C14,7 15,9 16.5,13 L22,26 M16.5,13 L10,26" fill="none" stroke="#FFB547" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- bus -->
+  <g fill="none" stroke="#B9AECC" stroke-width="2">
+    <line x1="1338" y1="442" x2="1338" y2="462"/>
+    <line x1="1248" y1="462" x2="1386" y2="462"/>
+    <line x1="1248" y1="462" x2="1248" y2="476" marker-end="url(#arrMuted)"/>
+    <line x1="1386" y1="462" x2="1386" y2="715"/>
+  </g>
+  <g fill="#B9AECC">
+    <circle cx="1338" cy="462" r="3.5"/>
+    <circle cx="1386" cy="523" r="3.5"/>
+    <circle cx="1386" cy="619" r="3.5"/>
+    <circle cx="1386" cy="715" r="3.5"/>
+  </g>
+
+  <!-- Bedrock + Guardrails -->
+  <rect class="box" x="1120" y="480" width="256" height="278" rx="16"/>
+  <rect x="1120" y="494" width="4" height="110" rx="2" fill="#FFB547"/>
+  <text class="t" x="1138" y="512">Amazon Bedrock</text>
+  <text class="s" x="1138" y="536">Converse API with</text>
+  <text class="s" x="1138" y="556">forced tool use: every</text>
+  <text class="s" x="1138" y="576">answer is schema JSON</text>
+  <text class="b" x="1138" y="603" font-size="15" font-weight="700" fill="#FFB547">cards · quest judge</text>
+  <text class="b" x="1138" y="622" font-size="15" font-weight="700" fill="#FFB547">Lumo's pick · advice</text>
+  <g transform="translate(1330 494)">
+    <rect width="32" height="32" rx="9" fill="#FFB547" opacity="0.16"/>
+    <path d="M16,4 C17,12 20,15 28,16 C20,17 17,20 16,28 C15,20 12,17 4,16 C12,15 15,12 16,4 Z" fill="#FFB547"/>
+  </g>
+  <rect x="1132" y="636" width="232" height="112" rx="14" fill="#120E1C" stroke="#FF5D8F" stroke-width="1.8"/>
+  <path d="M1156,652 L1170,658 V669 C1170,678 1164,684 1156,687 C1148,684 1142,678 1142,669 V658 Z" fill="#FF5D8F" opacity="0.9"/>
+  <path d="M1150,669 L1155,674 L1163,664" fill="none" stroke="#120E1C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text class="b" x="1180" y="666" font-size="18" font-weight="700" fill="#F7EFE2">Guardrails</text>
+  <text class="s" x="1180" y="687" font-size="15">family-safe output</text>
+  <text class="s" x="1146" y="712" font-size="15">prompt-attack filter on</text>
+  <text class="s" x="1146" y="733" font-size="15">untrusted page text</text>
+
+  <!-- DynamoDB -->
+  <rect class="box" x="1396" y="480" width="160" height="86" rx="14"/>
+  <rect x="1396" y="492" width="4" height="62" rx="2" fill="#3DDC97"/>
+  <text class="b" x="1412" y="508" font-size="19" font-weight="700" fill="#F7EFE2">DynamoDB</text>
+  <text class="s" x="1412" y="532" font-size="15">card cache per URL</text>
+  <text class="s" x="1412" y="551" font-size="15">7-day TTL</text>
+
+  <!-- Polly -->
+  <rect class="box" x="1396" y="576" width="160" height="86" rx="14"/>
+  <rect x="1396" y="588" width="4" height="62" rx="2" fill="#FF5D8F"/>
+  <text class="b" x="1412" y="604" font-size="19" font-weight="700" fill="#F7EFE2">Amazon Polly</text>
+  <text class="s" x="1412" y="628" font-size="15">Lumo's neural voice</text>
+  <text class="s" x="1412" y="647" font-size="15">MP3 for read-aloud</text>
+
+  <!-- CloudWatch -->
+  <rect class="box" x="1396" y="672" width="160" height="86" rx="14"/>
+  <rect x="1396" y="684" width="4" height="62" rx="2" fill="#5AB4FF"/>
+  <text class="b" x="1412" y="700" font-size="19" font-weight="700" fill="#F7EFE2">CloudWatch</text>
+  <text class="s" x="1412" y="724" font-size="15">logs and latency</text>
+  <text class="s" x="1412" y="743" font-size="15">per route</text>
+
+  <text class="b" x="1338" y="786" font-size="15" fill="#B9AECC" text-anchor="middle">Deployed with AWS SAM / CloudFormation</text>
+
+  <!-- footer -->
+  <text class="b" x="40" y="866" font-size="17" fill="#B9AECC">No backend or no network? Cards, quest checks and Lumo's lines fall back on-device.</text>
+  <text class="d" x="1560" y="866" font-size="24" fill="#FFB547" text-anchor="end">Browse together. Wander well.</text>
+</svg>
