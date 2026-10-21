@@ -21,10 +21,11 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Edl = (Join-Path $PSScriptRoot "edl.json"),
-    [string]$RawDir = (Join-Path $PSScriptRoot "raw"),
-    [string]$VoDir = (Join-Path $PSScriptRoot "vo"),
-    [string]$Out = (Join-Path $PSScriptRoot "out\wander-demo.mp4"),
+    # Defaults are filled in below: Windows PowerShell 5.1 leaves $PSScriptRoot empty inside param().
+    [string]$Edl = "",
+    [string]$RawDir = "",
+    [string]$VoDir = "",
+    [string]$Out = "",
     [string]$Ffmpeg = "",
     [double]$MaxSeconds = 0,
     [switch]$AllowMissing,   # placeholder slates for missing clips, skip missing VO / sounds
@@ -36,7 +37,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $PSScriptRoot
+$ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+if (-not $Edl) { $Edl = Join-Path $ScriptDir "edl.json" }
+if (-not $RawDir) { $RawDir = Join-Path $ScriptDir "raw" }
+if (-not $VoDir) { $VoDir = Join-Path $ScriptDir "vo" }
+if (-not $Out) { $Out = Join-Path $ScriptDir "out\wander-demo.mp4" }
+$Root = Split-Path -Parent $ScriptDir
 $Inv = [System.Globalization.CultureInfo]::InvariantCulture
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $W = 1920

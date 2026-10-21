@@ -19,3 +19,6 @@ backend/deploy-output.json
 video/out/
 video/raw/
 .claude/worktrees/
+video/vo/*.mp3
+video/vo/takes/
+video/sfx/
