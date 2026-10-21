@@ -10,14 +10,26 @@
   packages + deploys the CloudFormation/SAM stack, prints the API URL and key, and (with -WriteGradle)
   writes them into ../gradle.properties so the next TV build talks to your backend.
 
+  -FilterStrength and -OutputFilterStrength (HIGH, MEDIUM or LOW, both MEDIUM by default) set the family
+  content filters on the page text going in and on Lumo's own words coming out. HIGH also blocks
+  low-confidence matches, which can turn ordinary predator pages (cheetahs, T. rex) into "Let's skip this page".
+
+.NOTES
+  Windows ships with script running disabled (execution policy Restricted), so run the script through
+  powershell.exe with -ExecutionPolicy Bypass, which applies to that one process only (examples below are
+  from the repo root). If the repo arrived as a zip download, also run once:
+    Get-ChildItem backend -Recurse -Filter *.ps1 | Unblock-File
+
 .EXAMPLE
-  .\deploy.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1
 .EXAMPLE
-  .\deploy.ps1 -WriteGradle
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1 -WriteGradle
 .EXAMPLE
-  .\deploy.ps1 -ModelId eu.amazon.nova-2-lite-v1:0 -FallbackModelId ""
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1 -ModelId eu.amazon.nova-2-lite-v1:0 -FallbackModelId ""
 .EXAMPLE
-  .\deploy.ps1 -Region us-east-1 -ModelId us.anthropic.claude-haiku-5-5 -FallbackModelId us.amazon.nova-2-lite-v1:0
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1 -Region us-east-1 -ModelId us.anthropic.claude-haiku-5-5 -FallbackModelId us.amazon.nova-2-lite-v1:0
+.EXAMPLE
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1 -FilterStrength HIGH -OutputFilterStrength HIGH
 #>
 [CmdletBinding()]
 param(
@@ -28,7 +40,9 @@ param(
     [string]$FallbackModelId = "eu.amazon.nova-2-lite-v1:0",
     [string]$VoiceId = "Ivy",
     [ValidateSet("HIGH", "MEDIUM", "LOW")]
-    [string]$FilterStrength = "HIGH",
+    [string]$FilterStrength = "MEDIUM",
+    [ValidateSet("HIGH", "MEDIUM", "LOW")]
+    [string]$OutputFilterStrength = "MEDIUM",
     [string]$Profile = "",
     [switch]$WriteGradle,
     [switch]$SkipModelCheck
@@ -83,6 +97,16 @@ function Write-Utf8NoBom([string]$Path, [string]$Text) {
     [System.IO.File]::WriteAllText($Path, $Text, (New-Object System.Text.UTF8Encoding $false))
 }
 
+# The command that runs a script next to this one from the current folder, past the default Restricted policy.
+function Get-RunHint([string]$Name, [string]$Arguments = "") {
+    $path = Join-Path $Here $Name
+    try { $path = [string](Resolve-Path -LiteralPath $path -Relative -ErrorAction Stop) } catch { }
+    if ($path -match '\s') { $path = '"' + $path + '"' }
+    $line = "powershell -NoProfile -ExecutionPolicy Bypass -File $path"
+    if ($Arguments) { $line += " $Arguments" }
+    return $line
+}
+
 # ------------------------------------------------------------------ 1. tools and sign-in
 Step "Checking the AWS CLI and your sign-in"
 if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
@@ -92,7 +116,7 @@ $identity = Invoke-Aws @("sts", "get-caller-identity", "--output", "json")
 if ($identity.Code -ne 0) {
     Write-Host ""
     Write-Host "You are not signed in to AWS (aws sts get-caller-identity failed)." -ForegroundColor Red
-    Write-Host "Sign in with one of these, then run .\deploy.ps1 again:" -ForegroundColor Yellow
+    Write-Host "Sign in with one of these, then run this script again:" -ForegroundColor Yellow
     Write-Host "  aws login                  # AWS CLI 2.32+, uses your AWS console sign-in"
     Write-Host "  aws configure sso          # IAM Identity Center"
     Write-Host "  aws configure              # access key + secret"
@@ -214,7 +238,7 @@ $deployArgs = @("cloudformation", "deploy", "--template-file", $Packaged, "--sta
     "--capabilities", "CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "--no-fail-on-empty-changeset",
     "--tags", "app=wander-tv",
     "--parameter-overrides", "ApiKey=$ApiKey", "ModelId=$ModelId", "FallbackModelId=$FallbackModelId",
-    "VoiceId=$VoiceId", "FilterStrength=$FilterStrength")
+    "VoiceId=$VoiceId", "FilterStrength=$FilterStrength", "OutputFilterStrength=$OutputFilterStrength")
 & aws @deployArgs @Common
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
@@ -237,6 +261,7 @@ if (-not $ApiUrl) { Fail "The stack has no ApiUrl output." }
 $saved = [ordered]@{
     apiUrl = $ApiUrl; region = $Region; stackName = $StackName; modelId = $ModelId
     fallbackModelId = $FallbackModelId; dashboardUrl = [string]$outputs["DashboardUrl"]
+    filterStrength = $FilterStrength; outputFilterStrength = $OutputFilterStrength
     deployedAt = (Get-Date).ToString("s")
 }
 Write-Utf8NoBom $OutputsFile ($saved | ConvertTo-Json)
@@ -277,12 +302,15 @@ Write-Host ""
 Write-Host "  API URL   $ApiUrl"
 Write-Host "  API key   $ApiKey"
 Write-Host "  Model     $ModelId (fallback: $(if ($FallbackModelId) { $FallbackModelId } else { 'none' }))"
+Write-Host "  Filters   in $FilterStrength (page text), out $OutputFilterStrength (what Lumo says)"
 if ($outputs["DashboardUrl"]) { Write-Host "  Dashboard $($outputs['DashboardUrl'])" }
 Write-Host ""
 Write-Host "Next:" -ForegroundColor Cyan
-Write-Host "  .\smoke_test.ps1                      # hits every endpoint and prints latency"
+Write-Host "  $(Get-RunHint 'smoke_test.ps1')"
+Write-Host "      hits every endpoint, prints latency and fails if a nature page is blocked"
 if (-not $WriteGradle) {
-    Write-Host "  .\deploy.ps1 -WriteGradle             # or bake the URL + key into the next TV build"
+    Write-Host "  $(Get-RunHint 'deploy.ps1' '-WriteGradle')"
+    Write-Host "      or bake the URL + key into the next TV build"
 }
 Write-Host "  adb shell am start -n tv.wander/.MainActivity --es api_url $ApiUrl --es api_key $ApiKey"
-Write-Host "                                        # point an installed TV app at it without rebuilding"
+Write-Host "      point an installed TV app at it without rebuilding"

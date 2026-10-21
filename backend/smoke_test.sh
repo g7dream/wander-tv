@@ -4,7 +4,8 @@
 #   ./smoke_test.sh                                  # URL + key from .deploy/ (written by deploy.sh)
 #   ./smoke_test.sh https://abc.execute-api.eu-central-1.amazonaws.com wtv_...
 #
-# Needs curl and python (for JSON checks). Exits 1 if any check fails.
+# Needs curl and python (for JSON checks). Exits 1 if any check fails, including when the family guardrail
+# blocks an ordinary nature page (the cheetah and T. rex samples), so over-blocking shows up before the demo.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -88,15 +89,23 @@ check "health" 'status == 200 and j.get("ok") is True' '"model %s, guardrail %s"
 call GET /health - "definitely-not-the-key"
 check "wrong key is refused" 'status == 401' '"expects 401"'
 
+# Ordinary predator pages must not be blocked: on the TV a block shows "Let's skip this page".
+BLOCKED_HINT='"BLOCKED by the family guardrail: redeploy with lower --filter-strength / --output-filter-strength"'
+CARDS_OK='status == 200 and 1 <= len(j["cards"]) <= 5 and not j.get("blocked")'
+CARDS_DETAIL="$BLOCKED_HINT"' if j.get("blocked") else " | ".join(c["title"] for c in j["cards"])'
+
 call POST /cards "$SAMPLES/cards.json" "$API_KEY"
-check "cards (cheetah page)" 'status == 200 and 1 <= len(j["cards"]) <= 5' \
-  '("BLOCKED by guardrail (try --filter-strength MEDIUM): " if j.get("blocked") else "") + " | ".join(c["title"] for c in j["cards"])'
+check "cards (cheetah page)" "$CARDS_OK" "$CARDS_DETAIL"
 
 call POST /cards "$SAMPLES/cards.json" "$API_KEY"
 check "cards again (cache)" 'status == 200 and j.get("cached") is True' '"expects cached=true from DynamoDB"'
 
+call POST /cards "$SAMPLES/cards_dinosaur.json" "$API_KEY"
+check "cards (T. rex predator page)" "$CARDS_OK" "$CARDS_DETAIL"
+
 call POST /quest/check "$SAMPLES/quest_check_pass.json" "$API_KEY"
-check "quest check: cheetah" 'status == 200 and j["pass"] is True' '"%s: %s" % (j["item"], j["reason"])'
+check "quest check: cheetah" 'status == 200 and j["pass"] is True' \
+  "$BLOCKED_HINT"' if j.get("blocked") else "%s: %s" % (j["item"], j["reason"])'
 
 call POST /quest/check "$SAMPLES/quest_check_fail.json" "$API_KEY"
 check "quest check: box turtle" 'status == 200 and j["pass"] is False' 'j["reason"]'

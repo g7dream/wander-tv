@@ -26,11 +26,23 @@ Parameters:
     AllowedValues: [Ivy, Kevin, Justin, Joanna, Salli, Kimberly, Kendra, Joey, Matthew, Ruth, Stephen,
                     Danielle, Gregory, Amy, Emma, Brian, Arthur, Olivia]
     Description: Amazon Polly neural voice for Lumo (Ivy is a child voice).
+  # HIGH also blocks LOW-confidence detections, so ordinary nature pages (a cheetah that hunts gazelles, a T. rex
+  # that killed its prey) can come back as "Let's skip this page". MEDIUM still blocks medium and high confidence
+  # sexual, violent, hateful, insulting and misconduct content, and the managed profanity list always applies.
   FilterStrength:
     Type: String
-    Default: HIGH
+    Default: MEDIUM
     AllowedValues: [HIGH, MEDIUM, LOW]
-    Description: Guardrail strength for the family content filters. Prompt-attack filtering stays HIGH.
+    Description: >-
+      Input strength of the family content filters (the page text sent to the model). Prompt-attack filtering
+      stays HIGH whatever this is.
+  OutputFilterStrength:
+    Type: String
+    Default: MEDIUM
+    AllowedValues: [HIGH, MEDIUM, LOW]
+    Description: >-
+      Output strength of the family content filters (Lumo's own cards, verdicts, quests and lines, checked both
+      inside Converse and by the final ApplyGuardrail call).
   EnableGuardrail:
     Type: String
     Default: "true"
@@ -90,19 +102,19 @@ Resources:
         FiltersConfig:
           - Type: SEXUAL
             InputStrength: !Ref FilterStrength
-            OutputStrength: HIGH
+            OutputStrength: !Ref OutputFilterStrength
           - Type: VIOLENCE
             InputStrength: !Ref FilterStrength
-            OutputStrength: HIGH
+            OutputStrength: !Ref OutputFilterStrength
           - Type: HATE
             InputStrength: !Ref FilterStrength
-            OutputStrength: HIGH
+            OutputStrength: !Ref OutputFilterStrength
           - Type: INSULTS
             InputStrength: !Ref FilterStrength
-            OutputStrength: HIGH
+            OutputStrength: !Ref OutputFilterStrength
           - Type: MISCONDUCT
             InputStrength: !Ref FilterStrength
-            OutputStrength: HIGH
+            OutputStrength: !Ref OutputFilterStrength
           - Type: PROMPT_ATTACK
             InputStrength: HIGH
             OutputStrength: NONE
@@ -117,8 +129,9 @@ Resources:
     Type: AWS::Bedrock::GuardrailVersion
     Properties:
       GuardrailIdentifier: !GetAtt FamilyGuardrail.GuardrailId
-      # Changing the description cuts a new immutable version; tying it to the strength keeps them in sync.
-      Description: !Sub "Wander TV family filters, input strength ${FilterStrength}"
+      # Changing the description cuts a new immutable version; naming both strengths keeps the published version
+      # in sync with the DRAFT whenever either one changes.
+      Description: !Sub "Wander TV family filters, in ${FilterStrength} out ${OutputFilterStrength}"
 
   # ---------------------------------------------------------------- Lumo
   LumoLogGroup:

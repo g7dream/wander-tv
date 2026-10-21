@@ -1,5 +1,6 @@
 package tv.wander.ai
 
+import android.util.Log
 import org.json.JSONObject
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -10,6 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import tv.wander.model.DriftReason
 import tv.wander.model.DriftSignal
 import tv.wander.model.Mood
@@ -345,6 +347,89 @@ class AiClientTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS))
         // Reaching here without the exception tearing down the worker thread is the assertion; one more call works.
         assertTrue(await<tv.wander.model.CardDeck> { c.cards(page, it) }.fromAi)
+    }
+
+    // ------------------------------------------------------------------ diagnostics
+
+    private fun aiLogs(): List<ShadowLog.LogItem> = ShadowLog.getLogsForTag("WanderAi").toList()
+
+    private fun assertNothingSecretLogged() {
+        for (item in aiLogs()) {
+            assertFalse(item.msg, item.msg.contains(key))
+            assertFalse(item.msg, item.msg.contains("cheetah", ignoreCase = true))
+            assertFalse(item.msg, item.msg.contains("secret-body"))
+        }
+    }
+
+    @Test
+    fun rejectedCallsSayWhyWithoutTheKeyOrBody() {
+        ShadowLog.clear()
+        val t = FakeTransport { HttpResponse(401, """{"error":"unauthorized","echo":"secret-body"}""".toByteArray()) }
+        val c = client(t)
+        assertFalse(await<tv.wander.model.CardDeck> { c.cards(page, it) }.fromAi)
+        val line = aiLogs().single { it.msg.contains("POST /cards") }
+        assertEquals(Log.WARN, line.type)
+        assertTrue(line.msg, line.msg.contains("HTTP 401"))
+        assertTrue(line.msg, line.msg.contains("api_key"))
+
+        t.handler = { HttpResponse(404, """{"message":"Not Found"}""".toByteArray()) }
+        assertFalse(await<Boolean> { c.health(it) })
+        assertTrue(aiLogs().any { it.msg.contains("GET /health") && it.msg.contains("HTTP 404") && it.msg.contains("api_url") })
+        assertNothingSecretLogged()
+    }
+
+    @Test
+    fun networkErrorsAndBadAnswersNameTheCause() {
+        ShadowLog.clear()
+        val c = client(FakeTransport { throw java.net.UnknownHostException("abc.execute-api.example") })
+        await<tv.wander.model.CardDeck> { c.cards(page, it) }
+        assertTrue(aiLogs().any { it.msg.contains("POST /cards") && it.msg.contains("UnknownHostException") })
+
+        val c2 = client(FakeTransport { ok("<html>secret-body</html>") })
+        await<tv.wander.model.CardDeck> { c2.cards(page, it) }
+        assertTrue(aiLogs().any { it.msg.contains("JSONException") })
+
+        val c3 = client(FakeTransport { ok("""{"something":"else"}""") })
+        await<tv.wander.model.Verdict> { c3.checkQuest(SamplePages.SPEED_SAFARI, page, emptyList(), it) }
+        assertTrue(aiLogs().any { it.msg.contains("POST /quest/check") && it.msg.contains("without the expected fields") })
+        assertNothingSecretLogged()
+    }
+
+    @Test
+    fun timeoutsAndGuardrailBlocksAreLogged() {
+        ShadowLog.clear()
+        val slow = client(FakeTransport { Thread.sleep(600); ok(cardsJson) },
+            timeouts = AiClient.Timeouts(cards = 100, quest = 100, companion = 100, health = 100, speak = 100))
+        await<tv.wander.model.CardDeck> { slow.cards(page, it) }
+        assertTrue(aiLogs().any { it.msg.contains("POST /cards") && it.msg.contains("100 ms") })
+
+        val blocked = client(FakeTransport { ok("""{"blocked":true,"cards":[]}""") })
+        await<tv.wander.model.CardDeck> { blocked.cards(page, it) }
+        val line = aiLogs().single { it.msg.contains("guardrail") }
+        assertEquals(Log.INFO, line.type)
+        assertNothingSecretLogged()
+    }
+
+    @Test
+    fun aFailingBackendLogsOncePerMinuteNotPerCall() {
+        ShadowLog.clear()
+        val c = client(FakeTransport { HttpResponse(503, ByteArray(0)) })
+        repeat(5) { await<tv.wander.model.CardDeck> { c.cards(page, it) } }
+        assertEquals(1, aiLogs().count { it.msg.contains("HTTP 503") })
+    }
+
+    @Test
+    fun misconfigurationIsExplainedOnce() {
+        ShadowLog.clear()
+        client(FakeTransport { ok("{}") }, url = "execute-api.example/no-scheme")
+        assertTrue(aiLogs().any { it.msg.contains("api_url ignored") })
+        ShadowLog.clear()
+        AiClient(base, "", post = { it() }, transport = FakeTransport { ok("{}") }, background = { it() },
+            timeouts = AiClient.Timeouts.SPEC)
+        assertTrue(aiLogs().any { it.msg.contains("api_key is empty") })
+        ShadowLog.clear()
+        client(FakeTransport { ok("{}") })
+        assertTrue(aiLogs().isEmpty())
     }
 
     @Test

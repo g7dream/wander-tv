@@ -8,6 +8,7 @@ import tv.wander.model.PageText
 import tv.wander.model.Quest
 import tv.wander.model.SessionStats
 import tv.wander.model.Verdict
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ScheduledFuture
@@ -29,6 +30,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * - Falls back on: no URL, network error, timeout, non-2xx, malformed JSON. A guardrail block
  *   ({"blocked":true}) returns a safe result that never echoes the page's own text.
  * - [online] is true when the most recent call that finished got a usable answer from the backend.
+ * - Every fallback says why in logcat (tag WanderAi, at most once a minute per route and cause): the HTTP status
+ *   with a hint (401 = wrong api_key, 404 = wrong api_url), the exception type, or the timeout. Guardrail blocks
+ *   are logged at info level. The key, page text and response bodies are never logged.
  */
 class AiClient internal constructor(
     baseUrl: String,
@@ -52,6 +56,19 @@ class AiClient internal constructor(
 
     @Volatile
     private var lastOk = false
+
+    /** Last time (ms, monotonic) each diagnostic line was written, so a failing backend can't flood logcat. */
+    private val lastDiagnostic = ConcurrentHashMap<String, Long>()
+
+    init {
+        // Say once why the backend will not be used, so "Lumo is offline" has a logcat explanation.
+        when {
+            base == null && baseUrl.isNotBlank() ->
+                diagnose("config", "api_url ignored: it must start with http:// or https://. Using on-device answers.")
+            base == null -> diagnose("config", "No api_url set. Using on-device answers.", warn = false)
+            apiKey.isBlank() -> diagnose("config", "api_url is set but api_key is empty: the backend will answer HTTP 401.")
+        }
+    }
 
     val configured: Boolean get() = base != null
 
@@ -141,14 +158,22 @@ class AiClient internal constructor(
             runInBackground(once, offline) { once.deliver(offline(), ok = false) }
             return
         }
+        val route = "$method $path"
         val deadline: ScheduledFuture<*>? = try {
-            TIMER.schedule(Runnable { if (!once.isDone) once.deliver(offline(), ok = false) }, timeoutMs.toLong(), TimeUnit.MILLISECONDS)
+            TIMER.schedule(Runnable {
+                if (!once.isDone) {
+                    diagnose("$route timeout", "$route: no answer within $timeoutMs ms, using the on-device answer")
+                    once.deliver(offline(), ok = false)
+                }
+            }, timeoutMs.toLong(), TimeUnit.MILLISECONDS)
         } catch (t: Throwable) {
             null
         }
         runInBackground(once, offline) {
             var result: T? = null
             var ok = false
+            // Why the backend's answer was not used. Never includes the key, the page text or a response body.
+            var problem: String? = null
             try {
                 val bytes = body?.invoke()?.toString()?.toByteArray(Charsets.UTF_8)
                 val response = transport.execute(HttpRequest(method, url + path, headers(bytes != null), bytes, timeoutMs))
@@ -157,20 +182,44 @@ class AiClient internal constructor(
                     if (json.optBoolean("blocked", false)) {
                         result = blocked(json)
                         ok = true
+                        diagnose("$route blocked", "$route: the family guardrail blocked this answer; showing the safe one", warn = false)
                     } else {
                         val parsed = parse(json)
                         if (parsed != null) {
                             result = parsed
                             ok = true
+                        } else {
+                            problem = "HTTP ${response.code} without the expected fields"
                         }
                     }
+                } else {
+                    problem = "HTTP ${response.code}${statusHint(response.code)}"
                 }
             } catch (t: Throwable) {
                 // network error, timeout, malformed JSON: the offline answer below covers it
+                problem = "failed with ${t.javaClass.simpleName}"
             }
             deadline?.cancel(false)
+            if (problem != null) diagnose("$route $problem", "$route: $problem, using the on-device answer")
             @Suppress("UNCHECKED_CAST")
             if (!once.isDone) once.deliver(if (ok) result as T else offline(), ok)
+        }
+    }
+
+    /**
+     * A logcat line (tag WanderAi) explaining why the backend was not used. The same [key] is written at most
+     * once a minute. Callers pass only the route, status code or exception type: never the key or any text.
+     */
+    private fun diagnose(key: String, message: String, warn: Boolean = true) {
+        val now = System.nanoTime() / 1_000_000
+        val last = lastDiagnostic[key]
+        if (last != null && now - last < DIAGNOSTIC_INTERVAL_MS) return
+        if (lastDiagnostic.size > 64) lastDiagnostic.clear()
+        lastDiagnostic[key] = now
+        try {
+            if (warn) android.util.Log.w(TAG, message) else android.util.Log.i(TAG, message)
+        } catch (ignored: Throwable) {
+            // plain JVM without Android logging
         }
     }
 
@@ -220,13 +269,26 @@ class AiClient internal constructor(
 
     private fun log(message: String, t: Throwable?) {
         try {
-            android.util.Log.w("WanderAi", message, t)
+            android.util.Log.w(TAG, message, t)
         } catch (ignored: Throwable) {
             // plain JVM without Android logging
         }
     }
 
     private companion object {
+        const val TAG = "WanderAi"
+        const val DIAGNOSTIC_INTERVAL_MS = 60_000L
+
+        /** What a status code usually means for this backend (API Gateway HTTP API in front of the Lambda). */
+        fun statusHint(code: Int): String = when {
+            code == 401 -> " (wrong or missing api_key)"
+            code == 403 || code == 404 -> " (check api_url: it should be the stack's ApiUrl output)"
+            code == 413 -> " (request too large)"
+            code == 429 -> " (throttled by API Gateway)"
+            code >= 500 -> " (backend error: see the Lambda's CloudWatch logs)"
+            else -> ""
+        }
+
         private val DAEMON = ThreadFactory { r -> Thread(r, "wander-ai").apply { isDaemon = true } }
 
         /** Up to 4 calls in flight; idle threads exit after 30 s. */
