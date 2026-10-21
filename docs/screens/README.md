@@ -1,5 +1,7 @@
 # Screenshots
 
+The images here right now are the app's own views rendered at 1920x1080 by the Robolectric screenshot tests (`app/build/snaps/`), plus the phone page captured from the desktop harness with phone emulation. Replace them with captures from the real Fire TV when you have them, using the table below.
+
 The main README shows these five images. Take them on the real Fire TV (1920x1080) once the build is final. Windows blocks scripts by default, so run the commands below as `powershell -NoProfile -ExecutionPolicy Bypass -File .\video\capture.ps1 ...` (or from a PowerShell started with `-ExecutionPolicy Bypass`):
 
 | File | What to show | How |
