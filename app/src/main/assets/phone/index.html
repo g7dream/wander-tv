@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content">
+  <meta name="theme-color" content="#120E1C">
+  <meta name="color-scheme" content="dark">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wander">
+  <meta name="description" content="Your phone is the keyboard and touchpad for Wander TV.">
+  <title>Wander TV · couch remote</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23120E1C'/%3E%3Cpath d='M30 30C24 20 14 14 8 18c-4 3-2 12 4 16 5 3 12 3 18 0z' fill='%23FFB547'/%3E%3Cpath d='M34 30c6-10 16-16 22-12 4 3 2 12-4 16-5 3-12 3-18 0z' fill='%23FF5D8F'/%3E%3Cpath d='M30 34c-6 2-12 8-12 14 0 5 6 6 10 2 3-3 4-9 3-14zM34 34c6 2 12 8 12 14 0 5-6 6-10 2-3-3-4-9-3-14z' fill='%23FF8A6B'/%3E%3Cellipse cx='32' cy='34' rx='5' ry='12' fill='%23F7EFE2'/%3E%3Ccircle cx='32' cy='22' r='6' fill='%23F7EFE2'/%3E%3C/svg%3E">
+  <link rel="preload" href="/fonts/AtkinsonHyperlegible-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="/fonts/YoungSerif-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="phone.css">
+</head>
+<body>
+<div id="app" class="app booting" data-screen="join" data-mode="home">
+
+  <!-- The room: lamp glow and a few dust motes drifting in it. Purely decorative. -->
+  <div class="room" aria-hidden="true">
+    <div class="room-glow"></div>
+    <div class="motes"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+
+  <!-- ============================================================ JOIN -->
+  <main id="join" class="screen join" aria-labelledby="join-title">
+    <div class="join-inner">
+      <div class="hero" aria-hidden="true">
+        <svg class="hero-lamp" viewBox="0 0 120 64" width="120" height="64">
+          <defs>
+            <linearGradient id="shade-g" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#FFC96E"/>
+              <stop offset="1" stop-color="#E8892A"/>
+            </linearGradient>
+            <radialGradient id="bulb-g" cx=".5" cy=".5" r=".5">
+              <stop offset="0" stop-color="#FFF6DC"/>
+              <stop offset=".55" stop-color="#FFD27A"/>
+              <stop offset="1" stop-color="#FFB547" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <line x1="60" y1="0" x2="60" y2="18" stroke="#3A2F57" stroke-width="2"/>
+          <path d="M44 18h32l14 30H30z" fill="url(#shade-g)"/>
+          <path d="M44 18h32l2 4H42z" fill="#FFE3A8" opacity=".7"/>
+          <path d="M30 48h60" stroke="#B86A1F" stroke-width="2" stroke-linecap="round"/>
+          <ellipse cx="60" cy="52" rx="16" ry="9" fill="url(#bulb-g)"/>
+        </svg>
+        <div class="hero-cone"></div>
+        <div class="hero-lumo" data-lumo="curious" data-lumo-size="132"></div>
+      </div>
+
+      <p class="eyebrow">Wander TV</p>
+      <h1 id="join-title" class="join-title">You're on the couch.</h1>
+      <p class="lede">Pick a name and a color. This phone becomes the keyboard and touchpad for the big screen.</p>
+
+      <form id="join-form" class="join-card" novalidate autocomplete="off">
+        <label class="field-label" for="join-name">What should we call you?</label>
+        <input id="join-name" class="text-input" type="text" name="name" maxlength="16"
+               placeholder="Your name" autocomplete="off" autocorrect="off" autocapitalize="words"
+               spellcheck="false" enterkeyhint="go">
+
+        <div class="field-label" id="swatch-label">Pick your color</div>
+        <div class="swatches" id="swatches" role="radiogroup" aria-labelledby="swatch-label">
+          <button type="button" class="swatch" role="radio" data-color="0" aria-checked="false" style="--c:#FFB547; --c-rgb:255, 181, 71">
+            <span class="swatch-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <span class="swatch-name">Sun</span>
+          </button>
+          <button type="button" class="swatch" role="radio" data-color="1" aria-checked="false" style="--c:#FF5D8F; --c-rgb:255, 93, 143">
+            <span class="swatch-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <span class="swatch-name">Berry</span>
+          </button>
+          <button type="button" class="swatch" role="radio" data-color="2" aria-checked="false" style="--c:#3DDC97; --c-rgb:61, 220, 151">
+            <span class="swatch-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <span class="swatch-name">Mint</span>
+          </button>
+          <button type="button" class="swatch" role="radio" data-color="3" aria-checked="false" style="--c:#5AB4FF; --c-rgb:90, 180, 255">
+            <span class="swatch-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <span class="swatch-name">Sky</span>
+          </button>
+        </div>
+
+        <div id="join-msg" class="join-msg" role="status" aria-live="polite" hidden>
+          <strong id="join-msg-title"></strong>
+          <span id="join-msg-text"></span>
+        </div>
+
+        <button id="join-btn" class="btn btn-join" type="submit">
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="join-btn-text">Join the couch</span>
+        </button>
+      </form>
+
+      <p class="fineprint">No app, no account. This phone only talks to the TV in your living room.</p>
+    </div>
+  </main>
+
+  <!-- ============================================================ CONTROLLER -->
+  <main id="ctrl" class="screen ctrl" hidden aria-label="Wander TV remote">
+    <div class="ctrl-inner">
+     <!-- Two column wrappers: invisible in portrait (display: contents), side by side in landscape. -->
+     <div class="ctrl-col ctrl-col-a">
+
+      <header class="topbar">
+        <div class="top-lumo" data-lumo="curious" data-lumo-size="40" aria-hidden="true"></div>
+        <div class="now" aria-live="polite">
+          <span class="now-label"><i id="conn" class="conn" data-state="wait" aria-hidden="true"></i><span id="now-label">On the TV</span></span>
+          <span id="now-title" class="now-title">Home screen</span>
+        </div>
+        <div id="couch" class="couch" aria-label="Also on the couch"></div>
+        <button id="me-btn" class="me" type="button" aria-haspopup="dialog" aria-label="You. Open your seat">
+          <span class="me-dot" aria-hidden="true"></span>
+          <span id="me-name" class="me-name">You</span>
+        </button>
+      </header>
+
+      <!-- Active quest: collapsible -->
+      <section id="quest" class="quest" hidden data-open="false" aria-label="Family quest">
+        <button id="quest-head" class="quest-head" type="button" aria-expanded="false" aria-controls="quest-body">
+          <span id="quest-emoji" class="quest-emoji" aria-hidden="true"></span>
+          <span class="quest-heading">
+            <span id="quest-kicker" class="quest-kicker">Family quest</span>
+            <span id="quest-title" class="quest-title"></span>
+          </span>
+          <span id="quest-pips" class="pips" aria-hidden="true"></span>
+          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div id="quest-body" class="quest-body">
+          <div class="quest-body-inner">
+            <p id="quest-prompt" class="quest-prompt"></p>
+            <ul id="quest-found" class="found"></ul>
+            <div id="quest-board" class="board" aria-label="Scores"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search / URL field, or "typing into the page" when a page field is focused on the TV -->
+      <section id="omni" class="omni" data-kind="go">
+        <div id="omni-tag" class="omni-tag" hidden>
+          <span class="omni-tag-text"><span class="omni-tag-kicker">Typing into the page:</span> <b id="omni-label">Search</b></span>
+          <button id="omni-exit" class="omni-switch" type="button">Search instead</button>
+        </div>
+        <form id="omni-form" class="omni-form" autocomplete="off" novalidate>
+          <svg class="omni-icon omni-icon-go" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></svg>
+          <svg class="omni-icon omni-icon-type" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="3"/><path d="M6 10h1M9.5 10h1M13 10h1M16.5 10h1M7 14h10"/></svg>
+          <input id="omni-input" class="omni-input" type="text" name="q"
+                 placeholder="Search or type a web address" aria-label="Search or type a web address"
+                 autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+          <button id="omni-send" class="omni-send" type="submit" aria-label="Go">Go</button>
+        </form>
+        <div class="omni-under">
+          <p class="tip"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>Tip: tap the mic on your keyboard to talk</p>
+          <button id="omni-fill" class="omni-fill" type="button" hidden>Fill in without Enter</button>
+          <button id="omni-back" class="omni-switch omni-back" type="button" hidden>Type into the page</button>
+        </div>
+        <div id="suggest" class="suggest" hidden></div>
+      </section>
+
+      <!-- Quest picker: a row in home mode, a full list while the TV shows the picker -->
+      <section id="picker" class="picker" hidden data-layout="row" aria-labelledby="picker-title">
+        <div class="picker-head">
+          <h2 id="picker-title" class="picker-title">Start a family quest</h2>
+          <span class="picker-sub">First to find it scores</span>
+        </div>
+        <div id="picker-list" class="picker-list"></div>
+      </section>
+
+      <!-- Cards mode -->
+      <section id="cards" class="cards" hidden aria-label="Cards on the TV">
+        <div id="cards-card" class="cards-card">
+          <div class="cards-band">
+            <span>Field guide</span>
+            <span id="cards-no" class="cards-no">No. 1</span>
+          </div>
+          <h2 id="cards-title" class="cards-title"></h2>
+          <p id="cards-count" class="cards-count">Card 1 of 1</p>
+          <div id="cards-dots" class="cards-dots" aria-hidden="true"></div>
+          <p class="cards-swipe">Swipe here to flip</p>
+        </div>
+        <div class="cards-nav">
+          <button id="cards-prev" class="btn btn-flip" type="button" aria-label="Previous card">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Previous</span>
+          </button>
+          <button id="cards-next" class="btn btn-flip" type="button" aria-label="Next card">
+            <span>Next</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+        <div class="cards-actions">
+          <button id="cards-read" class="btn btn-read" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+            Read aloud
+          </button>
+          <button id="cards-close" class="btn btn-quiet" type="button" aria-label="Close the cards and go back to the page">Close cards</button>
+        </div>
+      </section>
+
+      <!-- Rescue mode -->
+      <section id="rescue" class="rescue" hidden aria-labelledby="rescue-headline">
+        <div class="rescue-lumo" data-lumo="concerned" data-lumo-size="104" aria-hidden="true"></div>
+        <p class="rescue-kicker">Lumo has an idea</p>
+        <h2 id="rescue-headline" class="rescue-headline"></h2>
+        <p id="rescue-detail" class="rescue-detail"></p>
+        <div id="rescue-options" class="rescue-options"></div>
+        <button id="rescue-fine" class="btn btn-quiet rescue-fine" type="button">We're fine, thanks</button>
+      </section>
+
+     </div>
+     <div class="ctrl-col ctrl-col-b">
+
+      <!-- Touchpad -->
+      <section id="pad-zone" class="pad-zone">
+        <div id="pad" class="pad" data-mode="pointer" role="application" aria-roledescription="touchpad" aria-label="Touchpad. Slide to move the pointer, tap to click, two fingers to scroll.">
+          <div class="pad-dots"></div>
+          <div class="pad-dots pad-dots-lit"></div>
+          <div id="pad-spot" class="pad-spot"></div>
+          <span class="pad-corner">Touchpad</span>
+          <div id="pad-hint" class="pad-hint">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M20 30V13a3 3 0 0 1 6 0v11l7.2 1.6a4 4 0 0 1 3.1 4.4L35 40H22l-6.6-7.3a2.6 2.6 0 0 1 3.6-3.7z"/><path class="pad-hint-ring" d="M14 12a10 10 0 0 1 18 0"/></svg>
+            <strong id="pad-hint-title">Slide to move the pointer</strong>
+            <span id="pad-hint-sub">Tap to click · Two fingers to scroll</span>
+          </div>
+          <div id="rail" class="rail" role="scrollbar" aria-orientation="vertical" aria-label="Scroll wheel. Drag to scroll the page, tap the ends to jump a page.">
+            <svg class="rail-chev rail-up" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5"/></svg>
+            <div id="rail-track" class="rail-track"></div>
+            <svg class="rail-chev rail-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
+          </div>
+        </div>
+      </section>
+
+      <button id="quest-submit" class="quest-submit" type="button" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span class="qs-spark" aria-hidden="true">✦</span>
+        <span id="qs-text">This page has it!</span>
+      </button>
+
+      <nav class="dock" aria-label="TV buttons">
+        <button class="dock-btn" type="button" data-key="back" aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l-6 6 6 6M4.5 12H15a5 5 0 0 1 5 5v1"/></svg>
+          <span>Back</span>
+        </button>
+        <button class="dock-btn" type="button" data-key="home" aria-label="Home">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6.5 8 6.5M6.5 9.5V19h11V9.5"/><path d="M10 19v-5h4v5"/></svg>
+          <span>Home</span>
+        </button>
+        <button id="dock-cards" class="dock-btn dock-cards" type="button" aria-label="Make it cards" aria-pressed="false">
+          <span class="dock-cards-face">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="4" width="12" height="15" rx="2.5" transform="rotate(8 13 11.5)"/><rect x="4.5" y="5.5" width="12" height="15" rx="2.5"/><path d="M8 10.5h5M8 14h3.5"/></svg>
+          </span>
+          <span id="dock-cards-label">Cards</span>
+        </button>
+        <button class="dock-btn dock-lumo" type="button" data-key="menu" aria-label="Open Lumo's menu on the TV">
+          <span class="dock-moth" data-lumo="curious" data-lumo-size="30" data-lumo-simple="1"></span>
+          <span>Lumo</span>
+        </button>
+        <div class="zoom" role="group" aria-label="Text size on the TV">
+          <button class="zoom-btn" type="button" data-zoom="-1" aria-label="Smaller text"><span class="z-glyph" aria-hidden="true"><span class="za za-s">A</span><span class="zs">−</span></span><span class="z-space" aria-hidden="true">.</span></button>
+          <button class="zoom-btn" type="button" data-zoom="1" aria-label="Bigger text"><span class="z-glyph" aria-hidden="true"><span class="za za-l">A</span><span class="zs">+</span></span><span class="z-space" aria-hidden="true">.</span></button>
+          <span class="zoom-label" aria-hidden="true">Text size</span>
+        </div>
+      </nav>
+     </div>
+    </div>
+  </main>
+
+  <!-- ============================================================ OVERLAYS -->
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+  <div id="celebrate" class="celebrate" hidden aria-live="assertive">
+    <canvas id="confetti" class="confetti"></canvas>
+    <div class="celebrate-inner">
+      <div class="celebrate-lumo" data-lumo="happy" data-lumo-size="120" aria-hidden="true"></div>
+      <p id="celebrate-text" class="celebrate-text"></p>
+    </div>
+  </div>
+
+  <div id="reconnect" class="reconnect" hidden role="alertdialog" aria-modal="true" aria-labelledby="rc-title" aria-describedby="rc-detail">
+    <div class="rc-card">
+      <div class="rc-moth">
+        <div data-lumo="sleepy" data-lumo-size="112" aria-hidden="true"></div>
+        <span class="zz zz1" aria-hidden="true">z</span><span class="zz zz2" aria-hidden="true">z</span><span class="zz zz3" aria-hidden="true">z</span>
+      </div>
+      <h2 id="rc-title" class="rc-title">Reconnecting to the TV...</h2>
+      <p id="rc-detail" class="rc-detail">Hang tight. Lumo is fluttering back.</p>
+      <div class="rc-actions">
+        <button id="rc-retry" class="btn btn-quiet" type="button" hidden>Try now</button>
+        <button id="rc-leave" class="link-btn" type="button">Join as someone else</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sheet" class="sheet" hidden>
+    <div class="sheet-scrim" data-close="1"></div>
+    <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-name">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="sheet-me">
+        <span class="sheet-dot" aria-hidden="true"></span>
+        <div>
+          <h2 id="sheet-name" class="sheet-name">You</h2>
+          <p id="sheet-sub" class="sheet-sub"></p>
+        </div>
+      </div>
+      <h3 class="sheet-h">On the couch tonight</h3>
+      <ul id="sheet-roster" class="roster"></ul>
+      <p class="sheet-privacy">Page text only leaves the TV when someone taps “Make it cards” or submits a quest answer.</p>
+      <div class="sheet-actions">
+        <button id="sheet-switch" class="btn btn-quiet" type="button">Change name or color</button>
+        <button id="sheet-close" class="btn btn-solid" type="button" data-close="1">Back to the remote</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="phone.js" defer></script>
+</body>
+</html>
