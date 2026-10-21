@@ -280,7 +280,10 @@ internal object PhoneProtocol {
             "rescue",
             if (rescue != null) {
                 val options = JSONArray()
-                for (opt in s.rescueOptions) options.put(JSONObject().put("label", opt.label).put("detail", opt.detail))
+                for (opt in s.rescueOptions) {
+                    // kind (quest | detour | wind_down) lets phones show the same icon as the TV.
+                    options.put(JSONObject().put("label", opt.label).put("detail", opt.detail).put("kind", opt.kind.name.lowercase()))
+                }
                 JSONObject()
                     .put("headline", rescue.headline)
                     .put("detail", rescue.detail)
@@ -314,6 +317,18 @@ internal object PhoneProtocol {
                     .put("evidence", f.evidence ?: JSONObject.NULL),
             )
         }
+        // The scoreboard exactly as the TV shows it, so phones can name and color every finder (the
+        // remote's "The couch" player too, which the phone-only "players" message never includes).
+        val players = JSONArray()
+        for (p in board.players) {
+            players.put(
+                JSONObject()
+                    .put("pid", p.id)
+                    .put("name", p.name)
+                    .put("color", p.colorIndex)
+                    .put("score", p.score),
+            )
+        }
         return JSONObject()
             .put("id", q.id)
             .put("title", q.title)
@@ -321,6 +336,7 @@ internal object PhoneProtocol {
             .put("emoji", q.emoji)
             .put("goal", q.goal)
             .put("found", found)
+            .put("players", players)
             .put("complete", board.complete)
     }
 }

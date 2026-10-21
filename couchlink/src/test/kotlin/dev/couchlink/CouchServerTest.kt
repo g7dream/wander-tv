@@ -301,6 +301,54 @@ class CouchServerTest {
         assertFalse(Http.sameOrigin("https://evil.example", "192.168.1.5:8080"))
     }
 
+    @Test
+    fun dnsRebindingPagesCannotOpenASocket() {
+        val listener = Recorder()
+        val s = startServer(listener)
+        val port = s.localPort
+        val good = "Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+        // A page on evil.example whose DNS now points at the TV: Origin and Host agree, but it's a name.
+        val rebound = http(s, "GET /ws HTTP/1.1\r\nHost: evil.example:$port\r\nOrigin: http://evil.example:$port\r\n$good\r\n")
+        assertEquals(403, rebound.status)
+        val mdns = http(s, "GET /ws HTTP/1.1\r\nHost: wander.local:$port\r\nOrigin: http://wander.local:$port\r\n$good\r\n")
+        assertEquals(403, mdns.status)
+        assertNull("no client was opened", listener.opens.poll(200, TimeUnit.MILLISECONDS))
+
+        // The phone page as the QR code opens it (raw IP), localhost, and non-browser clients still work.
+        fun statusLine(request: String): String {
+            val sock = Socket().also { sockets.add(it) }
+            sock.connect(InetSocketAddress("127.0.0.1", port), 2_000)
+            sock.soTimeout = 5_000
+            sock.getOutputStream().apply { write(request.toByteArray(Charsets.ISO_8859_1)); flush() }
+            return sock.getInputStream().bufferedReader(Charsets.ISO_8859_1).readLine().orEmpty()
+        }
+        val ws = RawWs(s)
+        assertTrue(ws.handshake(extra = "Origin: http://127.0.0.1:$port\r\n").startsWith("HTTP/1.1 101 "))
+        val local = statusLine("GET /ws HTTP/1.1\r\nHost: localhost:$port\r\nOrigin: http://localhost:$port\r\n$good\r\n")
+        assertTrue(local, local.startsWith("HTTP/1.1 101 "))
+        val noOrigin = statusLine("GET /ws HTTP/1.1\r\nHost: tv.example:$port\r\n$good\r\n")
+        assertTrue(noOrigin, noOrigin.startsWith("HTTP/1.1 101 "))
+
+        assertTrue(Http.isLiteralHost("192.168.1.5:8080"))
+        assertTrue(Http.isLiteralHost("10.0.2.15"))
+        assertTrue(Http.isLiteralHost("LOCALHOST:8080"))
+        assertTrue(Http.isLiteralHost("[::1]:8080"))
+        assertTrue(Http.isLiteralHost("[fe80::1%25wlan0]:8080"))
+        assertTrue(Http.isLiteralHost("[::ffff:192.168.1.5]"))
+        assertFalse(Http.isLiteralHost(null))
+        assertFalse(Http.isLiteralHost(""))
+        assertFalse(Http.isLiteralHost("evil.example:8080"))
+        assertFalse(Http.isLiteralHost("wander.local"))
+        assertFalse(Http.isLiteralHost("192.168.1.5.nip.io:8080"))
+        assertFalse(Http.isLiteralHost("192.168.1:8080"))
+        assertFalse(Http.isLiteralHost("192.168.1.256"))
+        assertFalse(Http.isLiteralHost("192.168.1.5:"))
+        assertFalse(Http.isLiteralHost("192.168.1.5:99999"))
+        assertFalse(Http.isLiteralHost("localhost.evil.example"))
+        assertFalse(Http.isLiteralHost("[::1"))
+        assertFalse(Http.isLiteralHost("[evil.example]:8080"))
+    }
+
     // ------------------------------------------------------------------ frames
 
     @Test

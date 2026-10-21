@@ -316,6 +316,12 @@ class CouchServer(
             respondError(out, 403, false, "cross-origin WebSocket from ${req.headers["origin"]?.take(80)}")
             return
         }
+        if (sameOriginOnly && req.headers["origin"] != null && !Http.isLiteralHost(req.headers["host"])) {
+            // DNS rebinding: a web page whose name now resolves to this TV is "same origin" with itself.
+            // Phones always come from the QR code's raw IP address, so browsers must use one too.
+            respondError(out, 403, false, "WebSocket from a browser must use the TV's IP address")
+            return
+        }
         val accept = Frames.acceptKey(key)
         val response = "HTTP/1.1 101 Switching Protocols\r\n" +
             "Upgrade: websocket\r\n" +
@@ -839,6 +845,49 @@ internal object Http {
         } catch (e: Exception) {
             false
         }
+    }
+
+    /**
+     * True when the Host header names this machine by an IP literal (IPv4 dotted quad or bracketed
+     * IPv6) or as localhost, with an optional port. DNS names are refused for browser WebSockets: a
+     * DNS-rebinding page sends its own name as both Origin and Host, so only a literal address proves
+     * the page really came from the TV.
+     */
+    fun isLiteralHost(host: String?): Boolean {
+        val h = host?.trim()?.lowercase() ?: return false
+        if (h.isEmpty()) return false
+        if (h.startsWith("[")) {
+            val end = h.indexOf(']')
+            if (end < 0) return false
+            val rest = h.substring(end + 1)
+            if (rest.isNotEmpty() && !(rest.startsWith(":") && isPort(rest.substring(1)))) return false
+            return isIpv6(h.substring(1, end))
+        }
+        val colon = h.indexOf(':')
+        if (colon >= 0 && (h.indexOf(':', colon + 1) >= 0 || !isPort(h.substring(colon + 1)))) return false
+        val name = if (colon >= 0) h.substring(0, colon) else h
+        return name == "localhost" || isIpv4(name)
+    }
+
+    private fun isPort(s: String): Boolean = s.length in 1..5 && s.all { it in '0'..'9' } && s.toInt() in 1..65535
+
+    private fun isIpv4(s: String): Boolean {
+        val parts = s.split('.')
+        return parts.size == 4 && parts.all { p -> p.length in 1..3 && p.all { it in '0'..'9' } && p.toInt() <= 255 }
+    }
+
+    /** Hex groups and colons (optionally a dotted-quad tail and a %zone), with at least two colons. */
+    private fun isIpv6(s: String): Boolean {
+        val addr = s.substringBefore('%')
+        if (addr.count { it == ':' } < 2 || addr.length > 45) return false
+        val tail = addr.substringAfterLast(':')
+        val head = if (tail.contains('.')) {
+            if (!isIpv4(tail)) return false
+            addr.substring(0, addr.length - tail.length)
+        } else {
+            addr
+        }
+        return head.all { it == ':' || it in '0'..'9' || it in 'a'..'f' }
     }
 
     fun contentType(path: String, body: ByteArray): String {

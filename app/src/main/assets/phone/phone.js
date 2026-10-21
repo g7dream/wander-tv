@@ -204,7 +204,9 @@
     everWelcomed: false,  // this page load has had a seat at least once
     rejected: false,
     greeting: 'join',     // what to say when the next welcome lands: join | rejoin | reconnect
+    replaced: false,      // our seat moved to another tab or window of this phone: wait for a tap, don't fight it
     players: [],
+    known: Object.create(null), // pid -> { name, color } for everyone seen tonight (never pruned)
     tv: emptyTv(),
     typeOverride: false,  // user chose "Search instead" while a page field is focused
     lastFieldKey: '',
@@ -238,12 +240,14 @@
         found: (Array.isArray(q.found) ? q.found : []).filter(isObj).slice(0, 24).map(function (x) {
           return { item: str(x.item, 60).trim() || 'Something', pid: str(x.pid, 64), evidence: str(x.evidence, 200).trim() };
         }),
+        // The TV's own scoreboard (it includes the remote, "The couch"). Null from a TV that doesn't send it.
+        players: Array.isArray(q.players) ? q.players.filter(isObj).slice(0, 8).map(normPlayer).filter(function (p) { return !!p.pid; }) : null,
       } : null,
       rescue: r ? {
         headline: str(r.headline, 220).trim(),
         detail: str(r.detail, 200).trim(),
         options: (Array.isArray(r.options) ? r.options : []).filter(isObj).slice(0, 2).map(function (o) {
-          return { label: str(o.label, 80).trim() || 'Try this', detail: str(o.detail, 160).trim() };
+          return { label: str(o.label, 80).trim() || 'Try this', detail: str(o.detail, 160).trim(), kind: str(o.kind, 16) };
         }),
       } : null,
       quests: (Array.isArray(m.quests) ? m.quests : []).filter(isObj).slice(0, 12).map(function (x) {
@@ -252,9 +256,36 @@
     };
   }
 
+  function normPlayer(p) {
+    return { pid: str(p.pid, 64), name: str(p.name, 32).trim() || 'Player', color: colorIndex(p.color), score: Math.max(0, int(p.score, 0)) };
+  }
+
   function playerBy(pid) {
     for (var i = 0; i < app.players.length; i++) if (app.players[i].pid === pid) return app.players[i];
     return null;
+  }
+
+  var COUCH_PID = 'couch';      // the TV remote plays quests as this player
+  var NEUTRAL_HEX = '#B9AECC';  // for a finder nobody can name any more
+
+  /** Everyone this page has seen tonight, so finds by a phone that has since left keep their name and color. */
+  function remember(list) {
+    (list || []).forEach(function (p) { if (p.pid) app.known[p.pid] = { name: p.name, color: p.color }; });
+  }
+
+  /**
+   * Name and color for whoever found something: the TV's scoreboard first (it includes the remote), then
+   * the phones on the couch now, then anyone seen earlier. Returns { name, hex, me }.
+   */
+  function finderOf(pid) {
+    if (pid && pid === app.me.pid) return { name: 'You', hex: COLORS[app.me.color].hex, me: true };
+    var q = app.tv.quest;
+    var p = null;
+    if (q && q.players) for (var i = 0; i < q.players.length && !p; i++) if (q.players[i].pid === pid) p = q.players[i];
+    p = p || playerBy(pid) || app.known[pid] || null;
+    if (p) return { name: p.name, hex: COLORS[colorIndex(p.color)].hex, me: false };
+    if (pid === COUCH_PID) return { name: 'The couch', hex: NEUTRAL_HEX, me: false };
+    return { name: 'Someone', hex: NEUTRAL_HEX, me: false };
   }
 
   /* ============================================================ 4. connection */
@@ -290,7 +321,7 @@
   function connect() {
     clearTimeout(net.retryTimer);
     net.retryTimer = 0;
-    if (!app.joined || net.ws) return;
+    if (!app.joined || app.replaced || net.ws) return;
     var ws;
     try { ws = new WebSocket(wsUrl()); } catch (e) { scheduleRetry(); return; }
     net.ws = ws;
@@ -314,8 +345,42 @@
       if (!isObj(msg) || typeof msg.t !== 'string') return;
       try { onMessage(msg); } catch (err) { if (window.console) console.error('wander: could not handle', msg.t, err); }
     };
-    ws.onclose = function () { if (net.ws === ws) lost(); };
+    ws.onclose = function (ev) {
+      if (net.ws !== ws) return;
+      // 4000: the TV gave our seat to a newer connection with the same pid and name, i.e. this phone in
+      // another tab (a re-scanned QR code opens one). Reconnecting would take it back and the two tabs
+      // would kick each other forever, so wait for the person to choose this tab instead.
+      if (ev && ev.code === 4000 && app.welcomed) replaced();
+      else lost();
+    };
     ws.onerror = function () { /* onclose always follows */ };
+  }
+
+  /** Our seat moved to another tab or window of this phone. Park here until asked to take it back. */
+  function replaced() {
+    clearTimeout(net.connectTimer);
+    clearTimeout(net.welcomeTimer);
+    clearTimeout(net.retryTimer);
+    net.retryTimer = 0;
+    stopTicking();
+    var ws = net.ws;
+    net.ws = null;
+    if (ws) detach(ws);
+    app.welcomed = false;
+    app.replaced = true;
+    app.greeting = 'reconnect';
+    pad.cancel();
+    setConn('wait');
+    if (app.screen === 'ctrl') reconnectUi.show(0);
+  }
+
+  /** "Use this phone here": take the seat back from the other tab (which then parks itself). */
+  function reclaim() {
+    if (!app.replaced) return;
+    app.replaced = false;
+    net.attempt = 0;
+    reconnectUi.update();
+    retryNow();
   }
 
   function detach(ws) {
@@ -348,7 +413,7 @@
   }
 
   function scheduleRetry() {
-    if (net.retryTimer || !app.joined) return;
+    if (net.retryTimer || !app.joined || app.replaced) return;
     var delay = BACKOFF_MS[Math.min(net.attempt, BACKOFF_MS.length - 1)] + Math.random() * 300;
     net.attempt++;
     net.retryTimer = setTimeout(function () { net.retryTimer = 0; connect(); }, delay);
@@ -356,7 +421,7 @@
   }
 
   function retryNow() {
-    if (!app.joined || app.rejected) return;
+    if (!app.joined || app.rejected || app.replaced) return;
     clearTimeout(net.retryTimer);
     net.retryTimer = 0;
     if (!net.ws) connect();
@@ -365,6 +430,7 @@
   /** Leaves on purpose: no reconnecting. */
   function disconnect() {
     app.joined = false;
+    app.replaced = false;
     clearTimeout(net.retryTimer);
     clearTimeout(net.connectTimer);
     clearTimeout(net.welcomeTimer);
@@ -395,7 +461,8 @@
 
   /** Called when the phone wakes up or the tab comes back: sockets often die silently while asleep. */
   function wake() {
-    if (!app.joined || app.rejected) return;
+    // A tab whose seat moved to another tab stays parked until tapped, or the two would take turns.
+    if (!app.joined || app.rejected || app.replaced) return;
     var ws = net.ws;
     if (!ws) { net.attempt = Math.min(net.attempt, 1); retryNow(); return; }
     if (app.welcomed && net.pongSeen && Date.now() - net.lastRx > 15000) {
@@ -431,6 +498,7 @@
     app.welcomed = true;
     app.everWelcomed = true;
     app.rejected = false;
+    app.replaced = false;
     app.greeting = 'reconnect';
     net.attempt = 0;
     store.write({ pid: pid, name: name, color: color, draft: null });
@@ -471,9 +539,8 @@
 
   function onPlayers(list) {
     if (!Array.isArray(list)) return;
-    app.players = list.filter(isObj).slice(0, 8).map(function (p) {
-      return { pid: str(p.pid, 64), name: str(p.name, 32).trim() || 'Player', color: colorIndex(p.color), score: Math.max(0, int(p.score, 0)) };
-    });
+    app.players = list.filter(isObj).slice(0, 8).map(normPlayer);
+    remember(app.players);
     var me = playerBy(app.me.pid);
     if (me && (me.name !== app.me.name || me.color !== app.me.color)) {
       app.me.name = me.name;
@@ -489,6 +556,7 @@
     var prev = app.tv;
     var tv = normState(m);
     app.tv = tv;
+    if (tv.quest) remember(tv.quest.players);
     if (tv.checking) app.submitLockUntil = 0;
     // Gentle haptics for things that happen on the TV and need this person's attention.
     if (tv.mode === 'rescue' && prev.mode !== 'rescue') vibrate([12, 50, 12]);
@@ -594,6 +662,7 @@
     app.me = { pid: null, name: name, color: color };
     app.joined = true;
     app.rejected = false;
+    app.replaced = false;
     app.greeting = 'join';
     net.attempt = 0;
     store.write({ draft: { name: name, color: color } });
@@ -687,7 +756,11 @@
       case 'browse': label = 'Browsing'; title = tv.title || hostOf(tv.url) || 'A web page'; break;
       case 'cards': label = 'Cards'; title = tv.title || 'Field guide cards'; break;
       case 'quest_picker': label = 'Quests'; title = 'Choosing a family quest'; break;
-      case 'quest_intro': label = 'New quest'; title = tv.quest && tv.quest.title ? tv.quest.title : 'Get ready'; break;
+      case 'quest_intro':
+        // The TV shows its quest-complete finale in this mode too, flagged by quest.complete.
+        label = tv.quest && tv.quest.complete ? 'Quest complete' : 'New quest';
+        title = tv.quest && tv.quest.title ? tv.quest.title : 'Get ready';
+        break;
       case 'rescue': label = 'Lumo'; title = 'Has an idea for you'; break;
       case 'companion': label = 'Lumo'; title = 'Lumo\u2019s menu is open'; break;
       default: break;
@@ -738,7 +811,9 @@
     setText(questPrompt, q.prompt);
     questHead.setAttribute('aria-label', (q.title || 'Family quest') + ', ' + Math.min(found, q.goal) + ' of ' + q.goal + ' found. ' + (open ? 'Fold' : 'Show details'));
 
-    var sig = JSON.stringify([q.goal, q.found, app.players, app.me.pid]);
+    // The TV's scoreboard when it sends one (the remote's points included), else the phones on the couch.
+    var board = q.players || app.players;
+    var sig = JSON.stringify([q.goal, q.found, board, app.players, app.me]);
     if (sig === questSig) return;
     questSig = sig;
 
@@ -746,9 +821,8 @@
     for (var i = 0; i < Math.min(q.goal, 8); i++) {
       var pip = el('span', 'pip');
       if (i < found) {
-        var finder = playerBy(q.found[i].pid);
         pip.setAttribute('data-on', '1');
-        pip.style.setProperty('--c', finder ? COLORS[finder.color].hex : COLORS[0].hex);
+        pip.style.setProperty('--c', finderOf(q.found[i].pid).hex);
       }
       questPips.appendChild(pip);
     }
@@ -758,18 +832,18 @@
       questFound.appendChild(el('li', 'found-empty', 'Nothing found yet. Open a page that has one, then tap \u201cThis page has it!\u201d'));
     }
     q.found.forEach(function (f) {
-      var p = playerBy(f.pid);
+      var by = finderOf(f.pid);
       var row = el('li', 'found-row');
-      row.style.setProperty('--c', p ? COLORS[p.color].hex : '#B9AECC');
+      row.style.setProperty('--c', by.hex);
       row.appendChild(el('span', 'found-dot'));
       row.appendChild(el('span', 'found-item', f.item));
-      row.appendChild(el('span', 'found-by', p ? (p.pid === app.me.pid ? 'You' : p.name) : 'Someone'));
+      row.appendChild(el('span', 'found-by', by.name));
       if (f.evidence) row.appendChild(el('span', 'found-ev', '\u201c' + f.evidence + '\u201d'));
       questFound.appendChild(row);
     });
 
     questBoard.textContent = '';
-    var ranked = app.players.slice().sort(function (a, b) { return b.score - a.score; });
+    var ranked = board.slice().sort(function (a, b) { return b.score - a.score; });
     var lead = ranked.length > 1 && ranked[0].score > 0 && ranked[0].score > ranked[1].score ? ranked[0].pid : null;
     ranked.forEach(function (p) {
       var chip = el('span', 'score-chip');
@@ -1078,6 +1152,9 @@
     cardsCard.addEventListener('pointercancel', function () { start = null; });
   })();
 
+  // Compass for a family quest, telescope for a curious detour, crescent moon for winding down (as on the TV).
+  var RESCUE_ICONS = { quest: '\ud83e\udded', detour: '\ud83d\udd2d', wind_down: '\ud83c\udf19' };
+
   var rescueSig = '';
   function renderRescue() {
     var r = app.tv.rescue;
@@ -1094,7 +1171,9 @@
     r.options.forEach(function (o, i) {
       var b = el('button', 'rescue-opt');
       b.type = 'button';
-      var icon = el('span', 'rescue-opt-icon', icons[i] || '\u2728');
+      // The TV's icon for this kind of option; by position only when the TV doesn't say which kind it is.
+      var kindIcon = Object.prototype.hasOwnProperty.call(RESCUE_ICONS, o.kind) ? RESCUE_ICONS[o.kind] : '';
+      var icon = el('span', 'rescue-opt-icon', kindIcon || icons[i] || '\u2728');
       icon.setAttribute('aria-hidden', 'true');
       var text = el('span', 'rescue-opt-text');
       text.appendChild(el('span', 'rescue-opt-label', o.label));
@@ -1682,6 +1761,15 @@
     },
     update: function () {
       if (rcEl.hidden) return;
+      var retryBtn = $('rc-retry');
+      if (app.replaced) {
+        setText($('rc-title'), 'You\u2019re connected in another tab');
+        setText($('rc-detail'), 'Your seat moved to another tab or window on this phone. Close that one, or use this one instead.');
+        setText(retryBtn, 'Use this phone here');
+        retryBtn.hidden = false;
+        return;
+      }
+      setText(retryBtn, 'Try now');
       var rejoining = app.greeting === 'rejoin';
       setText($('rc-title'), rejoining ? 'Rejoining as ' + app.me.name + '...' : 'Reconnecting to the TV...');
       var n = net.attempt;
@@ -1691,7 +1779,12 @@
       $('rc-retry').hidden = n < 3;
     },
   };
-  $('rc-retry').addEventListener('click', function () { net.attempt = 1; retryNow(); reconnectUi.update(); });
+  $('rc-retry').addEventListener('click', function () {
+    if (app.replaced) { reclaim(); return; }
+    net.attempt = 1;
+    retryNow();
+    reconnectUi.update();
+  });
   $('rc-leave').addEventListener('click', leave);
 
   var sheetEl = $('sheet');

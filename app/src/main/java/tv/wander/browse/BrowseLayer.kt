@@ -158,6 +158,7 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
     private val noticeHideRunnable = Runnable { noticeActive = false; strip.setNotice(null); maybeConcealStrip() }
     private val warmUpRunnable = Runnable { ensureWebView() }
     private var noticeActive = false
+    private val cookieFlushRunning = AtomicBoolean(false)
 
     init {
         setBackgroundColor(Palette.INK)
@@ -350,8 +351,46 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
         web?.let { wv ->
             runCatching { wv.onPause() }
             runCatching { wv.pauseTimers() }
+            flushCookies()
         }
-        runCatching { CookieManager.getInstance().flush() }
+    }
+
+    /**
+     * Keeps the right end of the title strip clear by [dp] (on top of the safe area), e.g. while the
+     * quest scoreboard sits in the top-right corner, so the domain and "driving" chips stay visible
+     * next to it. 0 gives the strip the full width again.
+     */
+    fun setTopEndReserve(dp: Float) = onMain {
+        val reserve = if (dp.isFinite()) dp.coerceIn(0f, MAX_TOP_END_RESERVE_DP) else 0f
+        val lp = strip.layoutParams as? LayoutParams ?: return@onMain
+        val right = dpi(Dimens.SAFE_H + reserve)
+        strip.setCompact(reserve > 0f)
+        if (lp.rightMargin == right) return@onMain
+        lp.rightMargin = right
+        strip.layoutParams = lp // the cursor's "dim the strip" check reads strip.right, so it follows
+    }
+
+    /**
+     * Saves cookies without blocking the UI thread: CookieManager.flush() waits for disk I/O. Only
+     * once a WebView exists (so a pause before warm-up never loads Chromium just to flush nothing),
+     * and at most one flush in flight.
+     */
+    private fun flushCookies() {
+        if (!cookieFlushRunning.compareAndSet(false, true)) return
+        val cookies = runCatching { CookieManager.getInstance() }.getOrNull()
+        if (cookies == null) {
+            cookieFlushRunning.set(false)
+            return
+        }
+        Async.io {
+            try {
+                cookies.flush()
+            } catch (t: Throwable) {
+                Log.w(TAG, "cookie flush failed", t)
+            } finally {
+                cookieFlushRunning.set(false)
+            }
+        }
     }
 
     fun destroy() = onMain {
@@ -461,7 +500,9 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
             runCatching { WebView.startSafeBrowsing(context.applicationContext, null) }
         }
 
-        wv.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        // No offscreen layer: the window is hardware accelerated and Chromium draws straight into it. A
+        // full-screen hardware layer would cost an extra 1080p texture and a second full-screen pass on
+        // every page frame (scrolling, video, animations), which weak TV GPUs feel.
         wv.setBackgroundColor(Palette.INK)
         wv.overScrollMode = View.OVER_SCROLL_NEVER
         wv.isFocusable = true
@@ -1392,6 +1433,7 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
         const val ZOOM_STEP = 10
 
         const val STRIP_HEIGHT_DP = 58f
+        const val MAX_TOP_END_RESERVE_DP = 480f
         const val STRIP_HIDE_MS = 3000L
         const val NOTICE_MS = 3200L
         const val WARM_UP_DELAY_MS = 450L

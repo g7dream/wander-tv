@@ -30,6 +30,12 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import tv.wander.model.PageText
 import tv.wander.model.Player
+import tv.wander.model.Quest
+import tv.wander.model.Verdict
+import tv.wander.quest.QuestBoardView
+import tv.wander.quest.QuestCatalog
+import tv.wander.quest.QuestEngine
+import tv.wander.quest.QuestOverlay
 import tv.wander.testing.Snap
 import kotlin.math.abs
 
@@ -175,6 +181,53 @@ class BrowseLayerTest {
         Snap.save(activity, "browse_tap_ripple")
     }
 
+    @Test
+    fun snapshotChromeBesideTheQuestBoard() {
+        show(FakePage(activity, dark = false))
+        val root = layer.parent as FrameLayout
+        val quest = QuestOverlay(activity, object : QuestOverlay.Listener {
+            override fun onQuestPicked(quest: Quest) = Unit
+            override fun onLumoPickRequested() = Unit
+            override fun onQuestPickerClosed() = Unit
+            override fun onIntroDismissed() = Unit
+            override fun onFinaleDismissed() = Unit
+        })
+        root.addView(quest, FrameLayout.LayoutParams(-1, -1))
+        val speed = QuestCatalog.byId("speed-safari")!!
+        val players = listOf(maya, theo)
+        val engine = QuestEngine().apply { start(speed) }
+        engine.apply("p2", Verdict(true, "Cheetah", "Yes!", "Cheetahs reach 104 km/h.", fromAi = true), players)
+        quest.showBoard(engine.board(players))
+        // What MainActivity does while the scoreboard is up: keep the strip's right end clear of it.
+        layer.setTopEndReserve(QuestBoardView.WIDTH_DP + 14f)
+        layer.open("en.wikipedia.org/wiki/Peregrine_falcon", maya)
+        simulateLoad("https://en.wikipedia.org/wiki/Peregrine_falcon", "Peregrine falcon - Wikipedia", progress = 64)
+        Snap.settle(300)
+        layout(root)
+        Snap.settle(100)
+        val board = (0 until quest.childCount).map { quest.getChildAt(it) }.first { it is QuestBoardView }
+        assertTrue(board.visibility == View.VISIBLE)
+        assertTrue("strip ends left of the board", strip().right <= board.left)
+        assertTrue(strip().revealed)
+        Snap.save(activity, "browse_chrome_beside_board")
+
+        // In the narrow strip a notice takes the domain chip's place, so "Maya driving" still fits.
+        layer.zoom(1)
+        Snap.settle(300)
+        layout(root)
+        val chips = (0 until strip().childCount).map { strip().getChildAt(it) }.filterIsInstance<android.widget.TextView>()
+        val domainChip = chips.first { it.text == "en.wikipedia.org" }
+        val driving = chips.first { it.text == "driving" }
+        assertEquals(View.GONE, domainChip.visibility)
+        assertTrue("driving chip inside the strip", driving.right <= strip().width - strip().paddingRight)
+        Snap.save(activity, "browse_chrome_beside_board_notice")
+
+        // Board gone: the strip gets its full width back.
+        layer.setTopEndReserve(0f)
+        layout(root)
+        assertEquals(1920 - 96, strip().right)
+    }
+
     // ---------------------------------------------------------------------------- behaviour
 
     @Test
@@ -189,7 +242,8 @@ class BrowseLayerTest {
         assertTrue(s.loadWithOverviewMode)
         assertTrue(s.userAgentString.endsWith(" WanderTV/1.0"))
         assertNotNull(shadowOf(web()).getJavascriptInterface(WebScripts.BRIDGE_NAME))
-        assertEquals(View.LAYER_TYPE_HARDWARE, web().layerType)
+        // No full-screen offscreen layer: Chromium draws straight into the window.
+        assertEquals(View.LAYER_TYPE_NONE, web().layerType)
     }
 
     @Test
