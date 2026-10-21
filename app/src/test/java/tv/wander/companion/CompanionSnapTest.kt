@@ -3,7 +3,9 @@ package tv.wander.companion
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.TextView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -31,6 +33,12 @@ class CompanionSnapTest {
         override fun onCompanionPanelClosed() {
             events += "closed"
         }
+    }
+
+    private fun textViews(v: View): List<TextView> = when (v) {
+        is TextView -> listOf(v)
+        is ViewGroup -> (0 until v.childCount).flatMap { textViews(v.getChildAt(it)) }
+        else -> emptyList()
     }
 
     private fun press(target: (KeyEvent) -> Boolean, code: Int): Boolean {
@@ -131,6 +139,19 @@ class CompanionSnapTest {
         Snap.settle(700)
         assertTrue(Snap.save(a, "companion_panel").length() > 20_000)
 
+        // The subtitle counts trail stops (8 folded titles), never a second "pages" figure next to the
+        // 14-pages stat tile; and the newest stop wraps instead of being cut short.
+        val texts = textViews(panel)
+        val subtitle = texts.first { it.text.contains("so far") }.text.toString()
+        assertTrue(subtitle, subtitle.contains("8 stops") && !subtitle.contains("page"))
+        val newest = texts.first { it.text.toString() == "Brazilian free-tailed bat" }
+        val layout = newest.layout
+        assertEquals(0, layout.getEllipsisCount(layout.lineCount - 1))
+        assertTrue(newest.lineCount in 1..2)
+        // Older stops keep their one-line rhythm.
+        val older = texts.first { it.text.toString() == "Golden eagle" }
+        assertEquals(1, older.maxLines)
+
         // Keys: down to demo, toggle it, back closes.
         assertTrue(press(panel::handleKey, KeyEvent.KEYCODE_DPAD_DOWN))
         assertTrue(press(panel::handleKey, KeyEvent.KEYCODE_DPAD_CENTER))
@@ -144,6 +165,26 @@ class CompanionSnapTest {
         assertFalse(panel.handleKey(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK)))
         Snap.settle(400)
         assertEquals(View.GONE, panel.visibility)
+    }
+
+    @Test
+    fun panelShortTrailKeepsRhythm() {
+        val a = Snap.activity()
+        val root = FrameLayout(a).apply { background = LampBackdrop() }
+        val panel = CompanionPanel(a, PanelSpy())
+        root.addView(panel, FrameLayout.LayoutParams(-1, -1))
+        Snap.show(a, root)
+        panel.show(SessionStats(3, 2, 30, 0, 1, 20, 2), listOf("Cheetah", "Sailfish"), aiOnline = true, nudgesOn = true, demoMode = false)
+        Snap.settle(700)
+        Snap.save(a, "companion_panel_short")
+        val texts = textViews(panel)
+        assertTrue(texts.first { it.text.contains("so far") }.text.contains("2 stops"))
+        // A short newest title stays one line, and its row is exactly as tall as the others (40dp).
+        val newest = texts.first { it.text.toString() == "Sailfish" }
+        val older = texts.first { it.text.toString() == "Cheetah" }
+        assertEquals(1, newest.lineCount)
+        assertEquals((older.parent as View).height, (newest.parent as View).height)
+        assertEquals(older.height, newest.height)
     }
 
     @Test

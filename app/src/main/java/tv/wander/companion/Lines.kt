@@ -173,7 +173,10 @@ object Lines {
     /** When the backend answers again. */
     fun online(): String = pick("online", ONLINE)
 
-    /** When the Lumo panel opens. */
+    /**
+     * When the Lumo panel opens. [pages] is the number of stops on tonight's trail (folded titles), so
+     * the line says "stops" and never competes with the panel's "pages" stat (the page-load count).
+     */
     fun panelIntro(pages: Int): String =
         if (pages <= 0) pick("panel.empty", PANEL_EMPTY) else fill(pick("panel.intro", PANEL_INTRO), "n" to pages.toString(), "s" to if (pages == 1) "" else "s")
 
@@ -494,9 +497,10 @@ object Lines {
         "I'm back online. Full brain again!",
         "Connected again. My antennae are buzzing.",
     )
+    // Counts trail stops, never "pages": the panel's stat tile already shows the page-load count.
     private val PANEL_INTRO = arrayOf(
-        "Here's where we've wandered tonight: {n} page{s} so far.",
-        "Our little map so far: {n} page{s}.",
+        "Here's where we've wandered tonight: {n} stop{s} so far.",
+        "Our little map so far: {n} stop{s}.",
     )
     private val PANEL_EMPTY = arrayOf(
         "A fresh night. Nothing on the map yet.",
