@@ -74,6 +74,22 @@ def walk(node, visit):
             walk(v, visit)
 
 
+FAMILY_FILTERS = ("SEXUAL", "VIOLENCE", "HATE", "INSULTS", "MISCONDUCT")
+FAMILY_STRENGTHS = {"HIGH", "MEDIUM", "LOW"}
+
+
+def _family_strength(value, params):
+    """(ok, parameter name or None): a literal HIGH/MEDIUM/LOW, or a !Ref to a parameter that only allows those."""
+    if isinstance(value, str):
+        return value in FAMILY_STRENGTHS, None
+    if isinstance(value, Tagged) and value.tag == "Ref" and value.value in params:
+        param = params[value.value] or {}
+        allowed = set(param.get("AllowedValues") or [])
+        ok = bool(allowed) and allowed <= FAMILY_STRENGTHS and param.get("Default") in allowed
+        return ok, value.value
+    return False, None
+
+
 def check(doc) -> list:
     problems = []
     need = lambda cond, msg: None if cond else problems.append(msg)  # noqa: E731
@@ -163,11 +179,26 @@ def check(doc) -> list:
         _, g = guards[0]
         need(bool(g.get("BlockedInputMessaging")) and bool(g.get("BlockedOutputsMessaging")), "blocked messages")
         filters = {f.get("Type"): f for f in (g.get("ContentPolicyConfig") or {}).get("FiltersConfig") or []}
-        for kind in ("SEXUAL", "VIOLENCE", "HATE", "INSULTS", "MISCONDUCT"):
-            need(kind in filters and filters[kind].get("OutputStrength") == "HIGH", f"{kind} filter at HIGH")
+        strength_refs = set()
+        for kind in FAMILY_FILTERS:
+            need(kind in filters, f"{kind} content filter missing")
+            for side in ("InputStrength", "OutputStrength"):
+                value = (filters.get(kind) or {}).get(side)
+                ok, ref = _family_strength(value, params)
+                need(ok, f"{kind} {side} must be HIGH, MEDIUM or LOW (or a parameter limited to those), not {value!r}")
+                if ref:
+                    strength_refs.add(ref)
         pa = filters.get("PROMPT_ATTACK") or {}
         need(pa.get("InputStrength") == "HIGH" and pa.get("OutputStrength") == "NONE",
              "PROMPT_ATTACK must be input HIGH / output NONE")
+        # A GuardrailVersion is an immutable snapshot that is only cut again when the version resource is replaced
+        # (for example when its Description changes). Every strength parameter must therefore appear in it.
+        for _, version in by_type.get("AWS::Bedrock::GuardrailVersion", []):
+            desc = version.get("Description")
+            text = desc.value if isinstance(desc, Tagged) and desc.tag == "Sub" and isinstance(desc.value, str) else ""
+            for ref in sorted(strength_refs):
+                need("${" + ref + "}" in text,
+                     f"GuardrailVersion Description must include ${{{ref}}} so a strength change publishes a new version")
     need(len(by_type.get("AWS::Bedrock::GuardrailVersion", [])) == 1, "expected one GuardrailVersion")
     need(len(by_type.get("AWS::Serverless::HttpApi", [])) == 1, "expected one HttpApi")
 
@@ -182,7 +213,7 @@ def check(doc) -> list:
     need("ApiUrl" in (doc.get("Outputs") or {}), "Outputs.ApiUrl missing")
     api_key = params.get("ApiKey") or {}
     need(api_key.get("NoEcho") is True, "ApiKey parameter must be NoEcho")
-    for p in ("ModelId", "VoiceId"):
+    for p in ("ModelId", "FallbackModelId", "VoiceId", "FilterStrength", "OutputFilterStrength"):
         need(p in params, f"parameter {p} missing")
     return problems
 

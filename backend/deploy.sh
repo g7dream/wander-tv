@@ -7,7 +7,11 @@
 #   ./deploy.sh --region us-east-1 --model us.anthropic.claude-haiku-5-5 --fallback us.amazon.nova-2-lite-v1:0
 #
 # Options: --region R  --stack NAME  --api-key KEY  --model ID  --fallback ID  --voice NAME
-#          --filter-strength HIGH|MEDIUM|LOW  --profile NAME  --write-gradle  --skip-model-check
+#          --filter-strength HIGH|MEDIUM|LOW         family content filters on the page text going in (MEDIUM)
+#          --output-filter-strength HIGH|MEDIUM|LOW  the same filters on Lumo's own words coming out (MEDIUM)
+#          --profile NAME  --write-gradle  --skip-model-check
+# HIGH also blocks low-confidence matches, which can turn ordinary predator pages (cheetahs, T. rex) into
+# "Let's skip this page"; the smoke test fails if that happens.
 set -euo pipefail
 
 REGION="eu-central-1"
@@ -16,7 +20,8 @@ API_KEY=""
 MODEL_ID="eu.anthropic.claude-haiku-5-5"
 FALLBACK_ID="eu.amazon.nova-2-lite-v1:0"
 VOICE_ID="Ivy"
-FILTER_STRENGTH="HIGH"
+FILTER_STRENGTH="MEDIUM"
+OUTPUT_FILTER_STRENGTH="MEDIUM"
 PROFILE=""
 WRITE_GRADLE=0
 SKIP_MODEL_CHECK=0
@@ -30,11 +35,18 @@ while [[ $# -gt 0 ]]; do
     --fallback) FALLBACK_ID="$2"; shift 2 ;;
     --voice) VOICE_ID="$2"; shift 2 ;;
     --filter-strength) FILTER_STRENGTH="$2"; shift 2 ;;
+    --output-filter-strength) OUTPUT_FILTER_STRENGTH="$2"; shift 2 ;;
     --profile) PROFILE="$2"; shift 2 ;;
     --write-gradle) WRITE_GRADLE=1; shift ;;
     --skip-model-check) SKIP_MODEL_CHECK=1; shift ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1 (see --help)" >&2; exit 2 ;;
+  esac
+done
+for strength in "$FILTER_STRENGTH" "$OUTPUT_FILTER_STRENGTH"; do
+  case "$strength" in
+    HIGH|MEDIUM|LOW) ;;
+    *) echo "Filter strengths must be HIGH, MEDIUM or LOW (got '$strength')" >&2; exit 2 ;;
   esac
 done
 
@@ -175,7 +187,7 @@ fi
 if ! awsq cloudformation deploy --template-file "$(native "$DEPLOY_DIR/packaged.yaml")" --stack-name "$STACK" \
     --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND --no-fail-on-empty-changeset --tags app=wander-tv \
     --parameter-overrides "ApiKey=$API_KEY" "ModelId=$MODEL_ID" "FallbackModelId=$FALLBACK_ID" \
-    "VoiceId=$VOICE_ID" "FilterStrength=$FILTER_STRENGTH"; then
+    "VoiceId=$VOICE_ID" "FilterStrength=$FILTER_STRENGTH" "OutputFilterStrength=$OUTPUT_FILTER_STRENGTH"; then
   printf '\n\033[31mThe deploy failed. The most recent failures:\033[0m\n' >&2
   awsq cloudformation describe-stack-events --stack-name "$STACK" --max-items 40 \
     --query "StackEvents[?contains(ResourceStatus, 'FAILED')].[LogicalResourceId,ResourceStatusReason]" \
@@ -200,7 +212,9 @@ cat > "$DEPLOY_DIR/outputs.json" <<JSON
   "stackName": "$STACK",
   "modelId": "$MODEL_ID",
   "fallbackModelId": "$FALLBACK_ID",
-  "dashboardUrl": "$DASHBOARD_URL"
+  "dashboardUrl": "$DASHBOARD_URL",
+  "filterStrength": "$FILTER_STRENGTH",
+  "outputFilterStrength": "$OUTPUT_FILTER_STRENGTH"
 }
 JSON
 
@@ -227,8 +241,9 @@ fi
 
 printf '\n\033[32mLumo'"'"'s brain is live.\033[0m\n\n'
 printf '  API URL   %s\n  API key   %s\n  Model     %s (fallback: %s)\n' "$API_URL" "$API_KEY" "$MODEL_ID" "${FALLBACK_ID:-none}"
+printf '  Filters   in %s (page text), out %s (what Lumo says)\n' "$FILTER_STRENGTH" "$OUTPUT_FILTER_STRENGTH"
 [[ -n "$DASHBOARD_URL" && "$DASHBOARD_URL" != "None" ]] && printf '  Dashboard %s\n' "$DASHBOARD_URL"
 printf '\nNext:\n'
-printf '  ./smoke_test.sh                       # hits every endpoint and prints latency\n'
+printf '  ./smoke_test.sh                       # hits every endpoint, prints latency, fails if a nature page is blocked\n'
 [[ "$WRITE_GRADLE" == 1 ]] || printf '  ./deploy.sh --write-gradle            # or bake the URL + key into the next TV build\n'
 printf '  adb shell am start -n tv.wander/.MainActivity --es api_url %s --es api_key %s\n' "$API_URL" "$API_KEY"

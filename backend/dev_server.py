@@ -5,8 +5,9 @@
 
 Then point the TV at it (same Wi-Fi):
   adb shell am start -n tv.wander/.MainActivity --es api_url http://<laptop-ip>:8787 --es api_key <key>
-and/or run the smoke tests:
-  powershell -File backend/smoke_test.ps1 -ApiUrl http://localhost:8787 -ApiKey <key>
+and/or run the smoke tests (-ExecutionPolicy Bypass because Windows disables scripts by default):
+  powershell -NoProfile -ExecutionPolicy Bypass -File backend/smoke_test.ps1 -ApiUrl http://localhost:8787 -ApiKey <key>
+  bash backend/smoke_test.sh http://localhost:8787 <key>
 
 The server converts each HTTP request into an API Gateway HTTP API (payload v2.0) event, so routing, auth,
 validation and logging are exactly the code that runs in Lambda.
@@ -111,7 +112,9 @@ def main():
     print(json.dumps({"listening": f"http://{lan_ip()}:{args.port}", "mode": mode, "api_key": args.key}))
     print(f"TV:    adb shell am start -n tv.wander/.MainActivity --es api_url http://{lan_ip()}:{args.port} "
           f"--es api_key {args.key}")
-    print(f"Smoke: powershell -File backend/smoke_test.ps1 -ApiUrl http://localhost:{args.port} -ApiKey {args.key}")
+    print(f"Smoke: powershell -NoProfile -ExecutionPolicy Bypass -File backend/smoke_test.ps1 "
+          f"-ApiUrl http://localhost:{args.port} -ApiKey {args.key}")
+    print(f"       bash backend/smoke_test.sh http://localhost:{args.port} {args.key}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

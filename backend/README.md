@@ -215,7 +215,8 @@ Every request needs `x-wander-key`. A guardrail block adds `"blocked": true` to 
   (`guardContent`). (3) Whatever the model says is validated: enums, curated URLs, length limits, and quest
   passes only with verified quotes that do not come from injected instructions.
 - **Family-safe both ways.** Content filters on input and on Lumo's final words (`ApplyGuardrail`), plus the
-  managed profanity list.
+  managed profanity list. Both sides default to `MEDIUM`: `HIGH` also blocks low-confidence matches, which
+  turns ordinary predator pages (a cheetah hunting gazelles, a T. rex and its prey) into "Let's skip this page".
 - **Least-privilege IAM.** The function role can call `bedrock:InvokeModel` only on the configured model and
   fallback (their inference profiles, and the foundation models behind them *only when reached through those
   profiles*, via the `bedrock:InferenceProfileArn` condition), `bedrock:ApplyGuardrail` only on its own
@@ -259,11 +260,16 @@ Prerequisites: AWS CLI v2, signed in (`aws login`, `aws configure sso` or `aws c
 access in your region (Anthropic models ask for a one-time use-case form in the Bedrock console).
 
 ```powershell
-cd backend
-.\deploy.ps1                 # eu-central-1, Claude Haiku 5.5 + Nova 2 Lite fallback
-.\deploy.ps1 -WriteGradle    # also writes wander.apiUrl / wander.apiKey into ../gradle.properties
-.\smoke_test.ps1             # hits every endpoint, prints results and latency, saves Lumo's voice to .deploy\
+# from the repo root
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1               # eu-central-1, Claude Haiku 5.5 + Nova 2 Lite fallback
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1 -WriteGradle  # also writes wander.apiUrl / wander.apiKey into gradle.properties
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\smoke_test.ps1           # hits every endpoint, prints results and latency, saves Lumo's voice to backend\.deploy\
 ```
+
+Windows ships with script running disabled (execution policy `Restricted`), so a bare `.\backend\deploy.ps1`
+fails with "running scripts is disabled on this system". `-ExecutionPolicy Bypass` lifts that for that one
+`powershell.exe` process and changes no settings. If the repo arrived as a zip download, also run
+`Get-ChildItem backend -Recurse -Filter *.ps1 | Unblock-File` once.
 
 ```bash
 cd backend
@@ -278,19 +284,25 @@ swap places and it tells you), creates a private artifacts bucket, runs `aws clo
 key and dashboard link, and says hello to `/health`. No SAM CLI, Docker or pip needed.
 
 Options: `-Region`, `-StackName`, `-ApiKey`, `-ModelId`, `-FallbackModelId`, `-VoiceId`,
-`-FilterStrength HIGH|MEDIUM|LOW` (input strength of the family content filters; prompt-attack filtering
-stays HIGH), `-Profile`, `-SkipModelCheck`. The bash script takes the same options in `--kebab-case`.
+`-FilterStrength HIGH|MEDIUM|LOW` (family content filters on the page text going in, default `MEDIUM`;
+prompt-attack filtering stays `HIGH`), `-OutputFilterStrength HIGH|MEDIUM|LOW` (the same filters on Lumo's
+own cards, verdicts, quests and lines, default `MEDIUM`), `-Profile`, `-SkipModelCheck`. The bash script takes
+the same options in `--kebab-case`. Changing either strength publishes a new guardrail version.
 
-The smoke test sends realistic payloads (a cheetah article, a box-turtle page that must fail, a
-prompt-injection page that must not pass, space titles for Lumo's pick, a rapid-hopping signal, a voice line)
-and exits non-zero if anything is off. If a nature page comes back blocked, redeploy with
-`-FilterStrength MEDIUM`.
+The smoke test sends realistic payloads (a cheetah article, a T. rex article about hunting prey, a box-turtle
+page that must fail, a prompt-injection page that must not pass, space titles for Lumo's pick, a rapid-hopping
+signal, a voice line) and exits non-zero if anything is off. A guardrail block on the cheetah or T. rex page
+counts as a failure, because on the TV it shows "Let's skip this page". If that happens, redeploy with a lower
+`-FilterStrength` / `-OutputFilterStrength` (`HIGH` > `MEDIUM` > `LOW`).
 
 ### Without AWS: the local dev server
 `python backend/dev_server.py --fake` runs the **same Lambda handler** behind a local HTTP server, with
-heuristic stand-ins for Bedrock, Polly and DynamoDB. The TV (or the smoke tests, with `-ApiUrl
-http://localhost:8787 -ApiKey dev-key-wander-tv-local`) can then be exercised end to end on a laptop. Without
-`--fake` and with boto3 installed, it calls real Bedrock with your credentials.
+heuristic stand-ins for Bedrock, Polly and DynamoDB. The TV and the smoke tests can then be exercised end to
+end on a laptop. Without `--fake` and with boto3 installed, it calls real Bedrock with your credentials.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\smoke_test.ps1 -ApiUrl http://localhost:8787 -ApiKey dev-key-wander-tv-local
+```
 
 ## Switch models or regions
 
@@ -306,14 +318,14 @@ follows the parameter automatically.
 | Amazon Nova Lite | `eu.amazon.nova-lite-v1:0` | Previous generation |
 | Claude Sonnet 5.5 | `eu.anthropic.claude-sonnet-5-5` | Rejects forced tool choice; Lambda falls back to `auto` by itself |
 
-Another region: `.\deploy.ps1 -Region us-east-1 -ModelId us.anthropic.claude-haiku-5-5 -FallbackModelId us.amazon.nova-2-lite-v1:0`.
+Another region: `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1 -Region us-east-1 -ModelId us.anthropic.claude-haiku-5-5 -FallbackModelId us.amazon.nova-2-lite-v1:0`.
 Guardrails, Polly neural voices and DynamoDB are available in all of these regions. To list what your
 account can use: `aws bedrock list-inference-profiles --region eu-central-1`.
 
 ## Point the TV at it
 
-- **At build time:** `.\deploy.ps1 -WriteGradle` fills `wander.apiUrl` and `wander.apiKey` in
-  `gradle.properties` (or pass `-Pwander.apiUrl=... -Pwander.apiKey=...` to Gradle). Do not commit the key.
+- **At build time:** `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\deploy.ps1 -WriteGradle`
+  fills `wander.apiUrl` and `wander.apiKey` in `gradle.properties` (or pass `-Pwander.apiUrl=... -Pwander.apiKey=...` to Gradle). Do not commit the key.
 - **On an installed TV, no rebuild:**
   `adb shell am start -n tv.wander/.MainActivity --es api_url https://<id>.execute-api.eu-central-1.amazonaws.com --es api_key <key>`
 - Leave both empty and the TV runs fully offline: cards, quests and Lumo still work from on-device fallbacks.
@@ -321,7 +333,7 @@ account can use: `aws bedrock list-inference-profiles --region eu-central-1`.
 ## Tests
 
 ```bash
-python -m unittest discover -s backend/tests     # 114 tests, fake boto3, no AWS needed
+python -m unittest discover -s backend/tests     # 119 tests, fake boto3, no AWS needed
 python backend/tools/check_template.py           # structural check of template.yaml
 ```
 

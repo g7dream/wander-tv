@@ -4,12 +4,22 @@
 
 .DESCRIPTION
   Reads the API URL and key from .deploy\ (written by deploy.ps1) unless you pass them.
-  Exits 1 if any check fails. Saves Lumo's voice sample to .deploy\lumo-says-hi.mp3.
+  Exits 1 if any check fails, including when the family guardrail blocks an ordinary nature page
+  (the cheetah and T. rex samples), so over-blocking shows up before the demo. Saves Lumo's voice
+  sample to .deploy\lumo-says-hi.mp3.
+
+.NOTES
+  Windows ships with script running disabled (execution policy Restricted), so run the script through
+  powershell.exe with -ExecutionPolicy Bypass, which applies to that one process only (examples below are
+  from the repo root). If the repo arrived as a zip download, also run once:
+    Get-ChildItem backend -Recurse -Filter *.ps1 | Unblock-File
 
 .EXAMPLE
-  .\smoke_test.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\smoke_test.ps1
 .EXAMPLE
-  .\smoke_test.ps1 -ApiUrl https://abc123.execute-api.eu-central-1.amazonaws.com -ApiKey wtv_...
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\smoke_test.ps1 -ApiUrl https://abc123.execute-api.eu-central-1.amazonaws.com -ApiKey wtv_...
+.EXAMPLE
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\smoke_test.ps1 -ApiUrl http://localhost:8787 -ApiKey dev-key-wander-tv-local
 #>
 [CmdletBinding()]
 param(
@@ -27,7 +37,11 @@ $Samples = Join-Path $Here "samples"
 
 if (-not $ApiUrl) {
     $outputsFile = Join-Path $DeployDir "outputs.json"
-    if (-not (Test-Path $outputsFile)) { Write-Host "No -ApiUrl given and no .deploy\outputs.json. Run .\deploy.ps1 first." -ForegroundColor Red; exit 1 }
+    if (-not (Test-Path $outputsFile)) {
+        Write-Host "No -ApiUrl given and no .deploy\outputs.json. Deploy first:" -ForegroundColor Red
+        Write-Host ("  powershell -NoProfile -ExecutionPolicy Bypass -File `"{0}`"" -f (Join-Path $Here "deploy.ps1"))
+        exit 1
+    }
     $ApiUrl = [string]((Get-Content -Path $outputsFile -Raw | ConvertFrom-Json).apiUrl)
 }
 if (-not $ApiKey) {
@@ -83,6 +97,17 @@ function Check([string]$Name, $Response, [bool]$Ok, [string]$Detail) {
     Write-Host ("{0,-4} {1,-28} HTTP {2,-3} {3,6} ms  {4}" -f $(if ($Ok) { "OK" } else { "FAIL" }), $Name, $Response.Status, $Response.Ms, $Detail) -ForegroundColor $color
 }
 function Has($Object, [string]$Property) { return ($null -ne $Object) -and ($Object.PSObject.Properties.Name -contains $Property) }
+function Blocked($Object) { return (Has $Object "blocked") -and [bool]$Object.blocked }
+
+# Ordinary predator pages must not be blocked: on the TV a block shows "Let's skip this page".
+$BlockedHint = "BLOCKED by the family guardrail: redeploy with a lower -FilterStrength / -OutputFilterStrength (HIGH > MEDIUM > LOW)"
+function Test-Cards([string]$Name, [string]$SampleName) {
+    $r = Invoke-Api "POST" "/cards" (Sample $SampleName) $ApiKey
+    $ok = $r.Status -eq 200 -and (Has $r.Json "cards") -and @($r.Json.cards).Count -ge 1 -and @($r.Json.cards).Count -le 5
+    $detail = if ($ok) { (@($r.Json.cards) | ForEach-Object { $_.title }) -join " | " } else { $r.Text }
+    if (Blocked $r.Json) { $ok = $false; $detail = $BlockedHint }
+    Check $Name $r $ok $detail
+}
 
 Write-Host ""
 Write-Host "Smoke testing $ApiUrl" -ForegroundColor Cyan
@@ -94,17 +119,16 @@ Check "health" $r ($r.Status -eq 200 -and (Has $r.Json "ok") -and $r.Json.ok) $(
 $r = Invoke-Api "GET" "/health" "" "definitely-not-the-key"
 Check "wrong key is refused" $r ($r.Status -eq 401) "expects 401"
 
-$r = Invoke-Api "POST" "/cards" (Sample "cards.json") $ApiKey
-$ok = $r.Status -eq 200 -and (Has $r.Json "cards") -and @($r.Json.cards).Count -ge 1 -and @($r.Json.cards).Count -le 5
-$detail = if ($ok) { (@($r.Json.cards) | ForEach-Object { $_.title }) -join " | " } else { $r.Text }
-if ($ok -and (Has $r.Json "blocked")) { $detail = "BLOCKED by guardrail (try -FilterStrength MEDIUM): $detail" }
-Check "cards (cheetah page)" $r $ok $detail
+Test-Cards "cards (cheetah page)" "cards.json"
 
 $r = Invoke-Api "POST" "/cards" (Sample "cards.json") $ApiKey
 Check "cards again (cache)" $r ($r.Status -eq 200 -and (Has $r.Json "cached") -and $r.Json.cached) "expects cached=true from DynamoDB"
 
+Test-Cards "cards (T. rex predator page)" "cards_dinosaur.json"
+
 $r = Invoke-Api "POST" "/quest/check" (Sample "quest_check_pass.json") $ApiKey
-Check "quest check: cheetah" $r ($r.Status -eq 200 -and (Has $r.Json "pass") -and $r.Json.pass) $(if (Has $r.Json "reason") { "$($r.Json.item): $($r.Json.reason)" } else { $r.Text })
+$detail = if (Blocked $r.Json) { $BlockedHint } elseif (Has $r.Json "reason") { "$($r.Json.item): $($r.Json.reason)" } else { $r.Text }
+Check "quest check: cheetah" $r ($r.Status -eq 200 -and (Has $r.Json "pass") -and $r.Json.pass) $detail
 
 $r = Invoke-Api "POST" "/quest/check" (Sample "quest_check_fail.json") $ApiKey
 Check "quest check: box turtle" $r ($r.Status -eq 200 -and (Has $r.Json "pass") -and -not $r.Json.pass) $(if (Has $r.Json "reason") { $r.Json.reason } else { $r.Text })
