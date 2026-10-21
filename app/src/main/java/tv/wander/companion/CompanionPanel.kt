@@ -474,7 +474,7 @@ class CompanionPanel(context: Context, private val listener: Listener) : FrameLa
 
         override fun draw(canvas: Canvas) {
             paint.shader = null
-            paint.color = Palette.withAlpha(Palette.INK, 0.86f)
+            paint.color = Palette.withAlpha(Palette.INK, 0.94f)
             canvas.drawRect(bounds, paint)
             glow?.let { paint.shader = it; canvas.drawRect(bounds, paint) }
             paint.shader = null

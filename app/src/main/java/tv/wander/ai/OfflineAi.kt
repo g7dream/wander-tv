@@ -14,6 +14,31 @@ object OfflineAi {
     private const val REASON_MAX = 120
     private const val EVIDENCE_MAX = 140
 
+    /** A number with the kind of unit quests are judged on (speed, depth, moons, weight...). */
+    private val MEASUREMENT = Regex(
+        "\\d[\\d,.]*\\s*(km/h|kph|kilomet(re|er)s?|mph|miles?|met(re|er)s?|m\\b|ft\\b|feet|moons?|kg\\b|kilograms?|" +
+            "tonnes?|tons?|pounds?|lbs?|times|million|percent|%)",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** The kind of fact this quest is judged on, read from its prompt and rubric; null when there is none. */
+    private fun topicalFact(quest: Quest): Regex? {
+        val about = (quest.prompt + " " + quest.rubric).lowercase()
+        val parts = buildList {
+            if (Regex("km/h|mph|fast|speed").containsMatchIn(about)) {
+                add("\\d[\\d,.]*\\s*(km/h|kph|kilomet(re|er)s?\\s+(per|an)\\s+hour|mph|miles\\s+(per|an)\\s+hour)")
+            }
+            if ("moon" in about) add("\\d[\\d,.]*\\s*(known\\s+|confirmed\\s+)?moons?")
+            if (Regex("met(re|er)s|deep|depth").containsMatchIn(about)) add("\\d[\\d,.]*\\s*(m|met(re|er)s?|feet|ft)\\b")
+            if ("weight" in about) add("(\\d[\\d,.]*\\s*times|times\\s+(its|their)\\s+(own\\s+)?(body\\s+)?weight)")
+            if ("cretaceous" in about) add("cretaceous")
+        }
+        return if (parts.isEmpty()) null else Regex(parts.joinToString("|", "(", ")"), RegexOption.IGNORE_CASE)
+    }
+
+    /** A sentence that carries on about the previous one's subject. */
+    private val CONTINUES = Regex("^(It|Its|They|Their|These|This|He|She)\\b")
+
     const val ONLINE_ONLY_REASON = "I can only check this quest when I'm online. Let's try again in a moment!"
     private const val NO_MATCH_REASON = "I couldn't spot a quest answer on this page yet. Try a page about just one!"
     private const val CONFUSED_REASON = "This page confused my antennae. Let's try another one!"
@@ -96,7 +121,7 @@ object OfflineAi {
             return Verdict(false, null, TextKit.clamp(reason, REASON_MAX), null, fromAi = false)
         }
 
-        val evidence = evidenceFor(page, pick.keyword) ?: pick.answer.fact.takeIf { it.isNotBlank() }
+        val evidence = evidenceFor(page, pick.keyword, quest) ?: pick.answer.fact.takeIf { it.isNotBlank() }
         val fact = pick.answer.fact.trim().replaceFirstChar { it.uppercaseChar() }
         val reason = if (fact.isEmpty()) "Yes! ${pick.answer.item} counts!" else "Yes! ${pick.answer.item} counts! $fact"
         return Verdict(
@@ -108,12 +133,35 @@ object OfflineAi {
         )
     }
 
-    /** The page sentence that mentions the keyword, trimmed around it to fit on screen. */
-    private fun evidenceFor(page: PageText, keyword: String): String? {
+    /**
+     * The page sentence that proves the find, trimmed around the keyword to fit on screen. Candidates are the
+     * sentences naming the keyword plus the follow-up that carries on about it ("It can run up to 105 km/h").
+     * A sentence with the quest's own kind of fact wins (a speed for Speed Safari, moons for Moon Collectors),
+     * then any measurement, then the first mention.
+     */
+    private fun evidenceFor(page: PageText, keyword: String, quest: Quest): String? {
         val regex = TextKit.keywordRegex(keyword)
-        val sentence = TextKit.sentences(page.text.take(6000), page.headings)
-            .firstOrNull { it.text.length >= 20 && regex.containsMatchIn(TextKit.normalize(it.text)) }
-            ?.text ?: return null
+        val sentences = TextKit.sentences(page.text.take(6000), page.headings).filter { it.text.length >= 20 }
+        val mentions = sentences.indices.filter { regex.containsMatchIn(TextKit.normalize(sentences[it].text)) }
+        if (mentions.isEmpty()) return null
+        val followUps = mentions.map { it + 1 }
+            .filter { it < sentences.size && it !in mentions && CONTINUES.containsMatchIn(sentences[it].text) }
+        val topical = topicalFact(quest)
+        // A measurement, not just any digit: infobox runs like "Temporal range: 1.9 mya" must not win.
+        fun score(i: Int): Int {
+            val text = sentences[i].text
+            if (text.length > 260) return 0
+            return when {
+                topical?.containsMatchIn(text) == true -> 3
+                MEASUREMENT.containsMatchIn(text) -> 1
+                else -> 0
+            }
+        }
+        val candidates = (mentions + followUps).sorted()
+        val best = candidates.maxByOrNull { score(it) * 10_000 - it } ?: return null
+        val pick = if (score(best) > 0 || best in mentions) best else mentions.first()
+        val sentence = sentences[pick].text
+        if (pick !in mentions) return TextKit.clamp(sentence, EVIDENCE_MAX)
         if (sentence.length <= EVIDENCE_MAX) return sentence
         val at = TextKit.normalize(sentence).let { regex.find(it)?.range?.first ?: 0 }
         val start = if (at < 50) 0 else sentence.lastIndexOf(' ', at - 40).coerceAtLeast(0)

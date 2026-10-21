@@ -34,7 +34,8 @@ object Palette {
     const val MINT = 0xFF3DDC97.toInt()
     const val SKY = 0xFF5AB4FF.toInt()
     const val CORAL = 0xFFFF7A6B.toInt()      // errors / "not quite"
-    const val SCRIM = 0xD90B0812.toInt()      // over web pages
+    // Over web pages: 94% so a bright white page (and its logos) only hints through behind overlays.
+    const val SCRIM = 0xF00B0812.toInt()
 
     val PLAYERS = intArrayOf(LAMP, BERRY, MINT, SKY)
     val PLAYER_COLOR_NAMES = arrayOf("Sun", "Berry", "Mint", "Sky")

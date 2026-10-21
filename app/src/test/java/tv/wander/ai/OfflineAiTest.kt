@@ -122,6 +122,25 @@ class OfflineAiTest {
     }
 
     @Test
+    fun evidencePrefersTheSentenceWithTheNumber() {
+        // The real Simple English Wikipedia opening: the speed is in the follow-up "It ..." sentence.
+        val page = PageText(
+            "https://simple.wikipedia.org/wiki/Cheetah", "Cheetah",
+            "Cheetah Temporal range: Pleistocene–Holocene, 1.9 mya–present Female Southern African cheetah " +
+                "KwaZulu Natal, South Africa Duration: 25 seconds. " +
+                "A cheetah is a medium large cat which lives in Africa and Asia. It is the fastest land animal and can " +
+                "run up to 105 kilometres per hour (65 mph). Most cheetahs live in the savannas of Africa. " +
+                "The cheetah stands 70–90 centimetres at the shoulder, and weighs 21–72 kilograms.",
+        )
+        val v = OfflineAi.checkQuest(SamplePages.SPEED_SAFARI, page, emptyList())
+        assertTrue(v.pass)
+        assertTrue(v.evidence!!, v.evidence!!.contains("105"))
+
+        val named = PageText("u", "Cheetah", "The cheetah is a big cat. Cheetahs can reach 112 km/h in short bursts.")
+        assertTrue(OfflineAi.checkQuest(SamplePages.SPEED_SAFARI, named, emptyList()).evidence!!.contains("112"))
+    }
+
+    @Test
     fun oneMentionInTextIsNotEnoughButTwoAre() {
         val once = PageText("u", "Fast animals", "The peregrine falcon is a bird of prey that lives on every continent but one.")
         assertFalse(OfflineAi.checkQuest(SamplePages.SPEED_SAFARI, once, emptyList()).pass)
