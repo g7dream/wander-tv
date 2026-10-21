@@ -176,6 +176,8 @@ class LampBackdrop(seed: Int = 7) : Drawable() {
         val w = b.width().toFloat()
         val h = b.height().toFloat()
         canvas.drawColor(Palette.INK)
+        // Reset to opaque: the paint's alpha multiplies the shader, and the motes leave it translucent.
+        paint.color = 0xFFFFFFFF.toInt()
         paint.shader = RadialGradient(w * 0.12f, h * 0.05f, w * 0.75f, Palette.withAlpha(Palette.LAMP, 0.16f), 0x00000000, Shader.TileMode.CLAMP)
         canvas.drawRect(b, paint)
         paint.shader = RadialGradient(w * 0.95f, h * 1.05f, w * 0.55f, Palette.withAlpha(Palette.BERRY, 0.10f), 0x00000000, Shader.TileMode.CLAMP)
