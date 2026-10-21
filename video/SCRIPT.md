@@ -199,7 +199,7 @@ Built for the Amazon Fire TV hackathon: Fire TV track + AWS Builder challenge.
 On AWS: API Gateway (HTTP API), AWS Lambda (Python), Amazon Bedrock (Converse + tool use) with Guardrails, Amazon DynamoDB, Amazon Polly, AWS CloudFormation / SAM, Amazon CloudWatch.
 Privacy: page text leaves the TV only when someone presses "Make it cards" or submits a quest.
 
-Code (MIT): [FILL IN: GitHub URL]
+Code (MIT): https://github.com/g7dream/wander-tv
 Devpost: [FILL IN: Devpost URL]
 
 Narration: AI-generated voice (ElevenLabs). Article text shown: Simple English Wikipedia, CC BY-SA 4.0. Fonts: Young Serif and Atkinson Hyperlegible (SIL OFL). No music.

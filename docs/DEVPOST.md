@@ -95,8 +95,8 @@ kotlin, android, fire-tv, fire-os, webview, websocket, html5, css3, javascript, 
 ## Links
 
 - Demo video: [FILL IN: YouTube URL]
-- Code: [FILL IN: GitHub URL] (MIT license)
-- APK: [FILL IN: GitHub Releases URL]
+- Code: https://github.com/g7dream/wander-tv (MIT license)
+- APK: https://github.com/g7dream/wander-tv/releases/latest
 
 ---
 
