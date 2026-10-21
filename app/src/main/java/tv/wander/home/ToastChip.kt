@@ -50,6 +50,25 @@ class ToastChip(context: Context) : FrameLayout(context) {
         })
     }
 
+    /**
+     * Where the chip drops in: centered between [startDp] and [endDp] (margins from the left and right
+     * edges), [topDp] from the top. Each screen picks a spot that covers nothing the family needs.
+     */
+    fun setAnchor(startDp: Float, endDp: Float, topDp: Float) {
+        val lp = chip.layoutParams as? LayoutParams ?: return
+        // FrameLayout centers a child at (width / 2 + startMargin - endMargin) and measures it within
+        // width - startMargin - endMargin. These margins give a chip centered between startDp and endDp
+        // that can never grow past either edge.
+        val start = dpi((3f * startDp + endDp) / 4f)
+        val end = dpi((startDp + 3f * endDp) / 4f)
+        val top = dpi(topDp)
+        if (lp.marginStart == start && lp.marginEnd == end && lp.topMargin == top) return
+        lp.marginStart = start
+        lp.marginEnd = end
+        lp.topMargin = top
+        chip.layoutParams = lp
+    }
+
     fun show(text: String, kind: Kind = Kind.INFO, holdMs: Long = 3200) {
         if (text.isBlank()) return
         label.text = text

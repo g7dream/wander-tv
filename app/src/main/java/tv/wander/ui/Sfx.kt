@@ -26,8 +26,16 @@ object Sfx {
     private val ready = BooleanArray(Sound.values().size)
     private val lastPlayed = LongArray(Sound.values().size)
 
+    /**
+     * How many init() calls are still waiting for their release(). The pool is shared by the whole
+     * process: a relaunched activity can init before the closing one's onDestroy releases, and that late
+     * release must not silence the new one.
+     */
+    private var users = 0
+
     /** Creates the pool and starts decoding the sounds in the background; a sound plays once it's loaded. */
     fun init(context: Context) {
+        users++
         if (pool != null) return
         try {
             val attrs = AudioAttributes.Builder()
@@ -48,7 +56,7 @@ object Sfx {
             }
         } catch (t: Throwable) {
             Log.w("Wander", "sound effects unavailable", t)
-            release()
+            releasePool()
         }
     }
 
@@ -62,7 +70,14 @@ object Sfx {
     fun pop() = play(Sound.POP)
     fun chime() = play(Sound.CHIME)
 
+    /** Pairs with [init]; the sounds are freed only when nobody is left using them. */
     fun release() {
+        if (users > 0) users--
+        if (users > 0) return
+        releasePool()
+    }
+
+    private fun releasePool() {
         val p = pool
         pool = null
         ready.fill(false)

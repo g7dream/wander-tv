@@ -9,6 +9,7 @@ import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import tv.wander.cards.MothDrawable
 import tv.wander.ui.Async
 import tv.wander.ui.Dimens
 import tv.wander.ui.Fonts
@@ -202,11 +203,13 @@ class LumoActionBar(context: Context, private val listener: Listener) : FrameLay
                 Action.ZOOM_OUT -> "A−" to "Smaller"
                 Action.ZOOM_IN -> "A+" to "Bigger"
                 Action.HOME -> "🏠" to "Home"
-                Action.LUMO_PANEL -> "🦋" to "Lumo panel"
+                Action.LUMO_PANEL -> "" to "Lumo panel"
             }
             val zoom = a == Action.ZOOM_IN || a == Action.ZOOM_OUT
             val iconView = Ui.text(context, if (zoom) TypeScale.H2 else 26f, Palette.CREAM, if (zoom) Fonts.display else Fonts.body, icon).apply {
                 gravity = Gravity.CENTER
+                // Lumo's own moth (the same one the cards and quests draw), not a stock butterfly.
+                if (a == Action.LUMO_PANEL) setCompoundDrawables(null, MothDrawable(Palette.LAMP, dpi(32f)), null, null)
             }
             val labelView = Ui.text(context, TypeScale.CAPTION, Palette.MUTED, Fonts.bodyBold, label).apply {
                 gravity = Gravity.CENTER

@@ -39,6 +39,11 @@ class Config(context: Context) {
 
     companion object {
         const val PORT = 8080
+
+        /** Tests serve phones on a free port instead of [PORT] (so they never fight over 8080). Null in the app. */
+        @Volatile
+        var portOverride: Int? = null
+
         private const val KEY_API_URL = "api_url"
         private const val KEY_API_KEY = "api_key"
         private const val KEY_DEMO = "demo"

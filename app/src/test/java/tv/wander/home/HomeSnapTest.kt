@@ -56,6 +56,37 @@ class HomeSnapTest {
     }
 
     @Test
+    fun homeFullCouchShowsEveryName() {
+        val activity = tvActivity()
+        val home = HomeView(activity, Recorder())
+        Snap.show(activity, home)
+        val url = "http://192.168.1.42:8080"
+        home.setJoinInfo(url, qr(url, home.qrSizePx))
+        home.setPlayers(listOf(Player("p1", "Maya", 1, 200), Player("p2", "Grandpa", 2), Player("p3", "Sophie", 3), Player("p4", "Leo", 0)))
+        leaveTouchMode(home)
+        home.focusDefault()
+        Snap.settle(600)
+        Snap.save(activity, "home_full_couch")
+    }
+
+    @Test
+    fun homeWhilePhonesCantJoinYet() {
+        val activity = tvActivity()
+        val home = HomeView(activity, Recorder())
+        Snap.show(activity, home)
+        val url = "http://192.168.1.42:8080"
+        home.setJoinInfo(url, qr(url, home.qrSizePx))
+        home.setPhonesReady(false)
+        leaveTouchMode(home)
+        home.focusDefault()
+        Snap.settle(600)
+        Snap.save(activity, "home_phones_not_ready")
+        // Once the hub is serving, the code comes back.
+        home.setPhonesReady(true)
+        Snap.settle(100)
+    }
+
+    @Test
     fun homeNoPhonesYet() {
         val activity = tvActivity()
         val home = HomeView(activity, Recorder())

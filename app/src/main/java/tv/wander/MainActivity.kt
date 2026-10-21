@@ -50,6 +50,7 @@ import tv.wander.quest.QuestOverlay
 import tv.wander.rescue.RescueOverlay
 import tv.wander.speech.Narrator
 import tv.wander.ui.Async
+import tv.wander.ui.Dimens
 import tv.wander.ui.Fonts
 import tv.wander.ui.Palette
 import tv.wander.ui.Sfx
@@ -84,6 +85,8 @@ class MainActivity : Activity() {
     private var alive = false
     /** False while something else covers the app (Alexa, settings): no nudges then. */
     private var resumed = false
+    /** True between onStop and onStart: another app has the screen, so nothing polls. */
+    private var stopped = false
     private var mode = Mode.HOME
     /** The screen under any overlay: HOME or BROWSE. */
     private var base = Mode.HOME
@@ -102,6 +105,8 @@ class MainActivity : Activity() {
     private var checking = false
     private var questRequest = 0
     private var pickPending = false
+    /** Bumped whenever a Lumo's pick in flight stops mattering (another quest started, picker closed). */
+    private var pickToken = 0
     private var freshQuestStart = false
     private var finaleShowing = false
     private var boardKey: String? = null
@@ -113,6 +118,12 @@ class MainActivity : Activity() {
     private var rescueOptions: List<RescueOption> = emptyList()
     private var remotePlayer: Player? = null
     private val trail = ArrayDeque<String>()
+    private var lumoPresent = true
+
+    /** True while the phone hub is serving; it keeps retrying while its port is held by someone else. */
+    private var hubReady = false
+    private var hubTries = 0
+    private val backgroundToldAt = HashMap<String, Long>()
 
     /** Pages opened since the family left Home, so Back returns Home instead of into last night's history. */
     private var pagesSinceHome = 0
@@ -137,6 +148,8 @@ class MainActivity : Activity() {
     private var lanTask: Runnable? = null
     private var finaleTask: Runnable? = null
     private var greetTask: Runnable? = null
+    private var hubTask: Runnable? = null
+    private var voiceCheck: Runnable? = null
 
     // =================================================================================================
     // Lifecycle
@@ -174,6 +187,17 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (!alive || !stopped) return
+        stopped = false
+        guard("start") {
+            checkHealth()
+            refreshJoinInfo()
+            publishState()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         resumed = true
@@ -183,17 +207,29 @@ class MainActivity : Activity() {
     override fun onPause() {
         resumed = false
         guard("pause") {
-            narrator?.stop()
+            stopVoice()
             browse?.onPause()
         }
         super.onPause()
     }
 
+    override fun onStop() {
+        stopped = true
+        // Another app has the screen: stop polling the backend and the network. Phones stay connected
+        // (so they come straight back), but their commands wait until Wander is on screen again.
+        Async.cancel(healthTask)
+        Async.cancel(lanTask)
+        healthTask = null
+        lanTask = null
+        super.onStop()
+    }
+
     override fun onDestroy() {
         alive = false
-        listOf(stateTask, healthTask, driftTask, lanTask, finaleTask, greetTask, cardsWatch, checkWatch).forEach { Async.cancel(it) }
+        listOf(stateTask, healthTask, driftTask, lanTask, finaleTask, greetTask, cardsWatch, checkWatch, hubTask, voiceCheck).forEach { Async.cancel(it) }
         guard("destroy.hub") { hub?.stop() }
         guard("destroy.narrator") { narrator?.shutdown() }
+        // Sfx is shared by the whole process; it only lets go once no activity is using it.
         guard("destroy.sfx") { Sfx.release() }
         guard("destroy.browse") { browse?.destroy() }
         hub = null
@@ -239,16 +275,12 @@ class MainActivity : Activity() {
     private fun startServices() {
         val assetManager = applicationContext.assets
         hub = try {
-            PhoneHub(Config.PORT, AssetSource { p -> runCatching { assetManager.open(p).use { it.readBytes() } }.getOrNull() }, hubListener, Async::main)
+            PhoneHub(hubPort, AssetSource { p -> runCatching { assetManager.open(p).use { it.readBytes() } }.getOrNull() }, hubListener, Async::main)
         } catch (t: Throwable) {
             Log.e(TAG, "phone hub failed to build", t)
             null
         }
-        val started = hub?.let { h -> runCatching { h.start() }.getOrElse { Log.e(TAG, "phone hub failed to start", it); false } } ?: false
-        if (!started) {
-            hub = null
-            toast.show("Phones can't join: port ${Config.PORT} is busy. The remote still works.", ToastChip.Kind.BAD, 6000)
-        }
+        startHub()
 
         makeAi()
         drift = DriftDetector(
@@ -264,12 +296,46 @@ class MainActivity : Activity() {
         scheduleDrift()
     }
 
+    /** The phone port: [Config.PORT], unless a test points the hub at a free one. */
+    private val hubPort: Int get() = Config.portOverride ?: Config.PORT
+
+    /**
+     * Starts serving phones. If the port is still held (typically by the Wander that was closing as this
+     * one opened), keeps trying: quickly at first, then on a slow beat, and shows the join code only once
+     * phones can really connect.
+     */
+    private fun startHub() {
+        Async.cancel(hubTask)
+        hubTask = null
+        val h = hub
+        val ok = h != null && runCatching { h.start() }.getOrElse { Log.w(TAG, "phone hub failed to start", it); false }
+        val wasReady = hubReady
+        hubReady = ok
+        home.setPhonesReady(ok)
+        if (ok) {
+            hubTries = 0
+            if (!wasReady) publishState()
+            return
+        }
+        if (h == null) {
+            toast.show("Phones can't join on this TV. The remote still works.", ToastChip.Kind.BAD, 6000)
+            return
+        }
+        hubTries++
+        if (hubTries == HUB_QUICK_TRIES) {
+            toast.show("Phones can't join yet: port $hubPort is busy. The remote still works.", ToastChip.Kind.BAD, 6000)
+        }
+        hubTask = Async.mainDelayed(if (hubTries < HUB_QUICK_TRIES) HUB_RETRY_MS else HUB_SLOW_RETRY_MS) {
+            if (alive) guard("hub.retry") { startHub() }
+        }
+    }
+
     private fun makeAi() {
         aiUrl = config.apiUrl
         aiKey = config.apiKey
         ai = AiClient(aiUrl, aiKey, Async::main)
         narrator = try {
-            Narrator(this, ai)
+            Narrator(this, ai).also { n -> n.onSpeaking = { on -> guard("narrator.speaking") { onNarratorSpeaking(on) } } }
         } catch (t: Throwable) {
             Log.e(TAG, "narrator unavailable", t)
             null
@@ -293,7 +359,7 @@ class MainActivity : Activity() {
         client.health { ok ->
             if (alive && client === ai) setAiOnline(ok)
         }
-        healthTask = Async.mainDelayed(HEALTH_EVERY_MS) { if (alive) checkHealth() }
+        healthTask = Async.mainDelayed(HEALTH_EVERY_MS) { if (alive && !stopped) checkHealth() }
     }
 
     private fun setAiOnline(online: Boolean) {
@@ -307,9 +373,10 @@ class MainActivity : Activity() {
     private fun refreshJoinInfo() {
         Async.cancel(lanTask)
         val size = home.qrSizePx.coerceAtLeast(64)
+        val port = hubPort
         Async.io {
             val ip = runCatching { LanAddress.ipv4() }.getOrNull()
-            val url = ip?.let { "http://$it:${Config.PORT}" }
+            val url = ip?.let { "http://$it:$port" }
             Async.main {
                 if (!alive || url == joinUrl) return@main
                 joinUrl = url
@@ -324,7 +391,7 @@ class MainActivity : Activity() {
                 }
             }
         }
-        lanTask = Async.mainDelayed(LAN_EVERY_MS) { if (alive) refreshJoinInfo() }
+        lanTask = Async.mainDelayed(LAN_EVERY_MS) { if (alive && !stopped) refreshJoinInfo() }
     }
 
     private fun scheduleDrift() {
@@ -338,6 +405,8 @@ class MainActivity : Activity() {
 
     private fun checkDrift() {
         if (!resumed || mode != Mode.BROWSE || !config.nudgesOn || advising || browse == null) return
+        // A family hunting for a quest answer is browsing on purpose, not drifting.
+        if (checking || questHunting()) return
         val signal = drift.check() ?: return
         advising = true
         try {
@@ -349,6 +418,12 @@ class MainActivity : Activity() {
             advising = false
             throw t
         }
+    }
+
+    /** A quest is running and not finished yet. */
+    private fun questHunting(): Boolean {
+        if (quests.active == null) return false
+        return quests.board(questPlayers())?.complete != true
     }
 
     // =================================================================================================
@@ -368,9 +443,12 @@ class MainActivity : Activity() {
             if (next == Mode.BROWSE || next == Mode.CARDS || next == Mode.RESCUE) mode = Mode.HOME
         }
 
-        // Close whatever doesn't belong to the new mode. Their callbacks see the new mode and do nothing.
+        // Close whatever doesn't belong to the new mode. Their callbacks see the new mode and only tidy up.
         if (mode != Mode.BROWSE) actionBar.hide()
-        if (mode != Mode.CARDS && cards.isShowing) cards.close()
+        if (mode != Mode.CARDS && (cards.isShowing || cardsLoading)) {
+            if (cards.isShowing) cards.close()
+            endCards()
+        }
         if (mode != Mode.RESCUE && rescue.isShowing) rescue.hide()
         if (mode != Mode.COMPANION && panel.isShowing) panel.hide()
         if (mode != Mode.QUEST_PICKER && mode != Mode.QUEST_INTRO && questOverlay.isModal) questOverlay.hideModal()
@@ -386,7 +464,8 @@ class MainActivity : Activity() {
         browse?.let { b ->
             val wasVisible = b.visibility == View.VISIBLE
             b.visibility = if (homeVisible) View.INVISIBLE else View.VISIBLE
-            if (homeVisible && wasVisible) b.onPause() else if (!homeVisible && !wasVisible) b.onResume()
+            // Never wake the page while another app has the screen (a phone can switch modes then).
+            if (homeVisible && wasVisible) b.onPause() else if (!homeVisible && !wasVisible && resumed) b.onResume()
         }
         // Only the screen the family is looking at may hold focus; overlays keep D-pad focus to themselves.
         home.descendantFocusability = if (mode == Mode.HOME) homeFocusability else ViewGroup.FOCUS_BLOCK_DESCENDANTS
@@ -396,8 +475,7 @@ class MainActivity : Activity() {
         if (mode != Mode.BROWSE) browse?.findFocus()?.clearFocus()
 
         syncBoard()
-        lumo.setBig(base == Mode.HOME || mode == Mode.RESCUE)
-        if (mode == Mode.HOME && isLateNight()) lumo.mood = Mood.SLEEPY
+        syncLumo()
         updateKeepScreenOn()
 
         if (mode == Mode.HOME) {
@@ -405,6 +483,59 @@ class MainActivity : Activity() {
             root.post { if (alive && mode == Mode.HOME) home.focusDefault() }
         }
         publishState()
+    }
+
+    /**
+     * Lumo's size, presence, bubble and resting mood for the screen that is up. Full-screen quest screens
+     * have their own moth, so Lumo steps out; everywhere else the bubble only goes where it covers nothing.
+     */
+    private fun syncLumo() {
+        val present = !(mode == Mode.QUEST_PICKER || (mode == Mode.QUEST_INTRO && !finaleShowing))
+        setLumoPresent(present)
+        if (present) lumo.setBig(mode == Mode.HOME || mode == Mode.RESCUE || mode == Mode.COMPANION)
+        lumo.setPlacement(
+            when {
+                mode == Mode.HOME -> CompanionLayer.Placement.FOOTER
+                mode == Mode.BROWSE && !actionBar.isShowing -> CompanionLayer.Placement.CORNER
+                else -> CompanionLayer.Placement.QUIET
+            },
+        )
+        val rest = if (mode == Mode.RESCUE || (mode == Mode.HOME && isLateNight())) Mood.SLEEPY else Mood.CURIOUS
+        if (lumo.mood != rest) lumo.mood = rest
+    }
+
+    private fun setLumoPresent(present: Boolean) {
+        if (present == lumoPresent) return
+        lumoPresent = present
+        lumo.animate().cancel()
+        if (present) {
+            lumo.visibility = View.VISIBLE
+            lumo.animate().alpha(1f).setDuration(220).start()
+        } else {
+            lumo.animate().alpha(0f).setDuration(160).withEndAction { if (!lumoPresent) lumo.visibility = View.INVISIBLE }.start()
+        }
+    }
+
+    /** Lumo "thinks" while cards load, a quest answer is being judged or a quest is being dreamed up. */
+    private fun syncThinking() {
+        lumo.thinking(cardsLoading || checking || pickPending)
+    }
+
+    /** The toast chip drops in where it covers nothing the family needs on the screen that is up. */
+    private fun syncToastAnchor() {
+        when (mode) {
+            // Between the tagline and the tiles: never over the clock, the AI chip or the join panel.
+            Mode.HOME -> toast.setAnchor(Dimens.SAFE_H, TOAST_HOME_END_DP, TOAST_HOME_TOP_DP)
+            // Below the page's title strip, and left of the quest board when one is up.
+            Mode.BROWSE ->
+                if (boardKey != null) toast.setAnchor(Dimens.SAFE_H, Dimens.SAFE_H + TOAST_BOARD_SPACE_DP, TOAST_BROWSE_TOP_DP)
+                else toast.setAnchor(TOAST_SIDE_DP, TOAST_SIDE_DP, TOAST_BROWSE_TOP_DP)
+            // Under the choices and their key hints, left of big Lumo.
+            Mode.RESCUE -> toast.setAnchor(Dimens.SAFE_H, TOAST_RESCUE_END_DP, TOAST_RESCUE_TOP_DP)
+            // In the free column right of the panel, above big Lumo: never over the toggles or the AI chip.
+            Mode.COMPANION -> toast.setAnchor(TOAST_PANEL_START_DP, Dimens.SAFE_H, Dimens.SAFE_V + 4f)
+            else -> toast.setAnchor(TOAST_SIDE_DP, TOAST_SIDE_DP, Dimens.SAFE_V + 4f)
+        }
     }
 
     private fun updateKeepScreenOn() {
@@ -415,7 +546,7 @@ class MainActivity : Activity() {
 
     private fun goHome() {
         if (mode != Mode.HOME) Sfx.back()
-        narrator?.stop()
+        stopVoice()
         setMode(Mode.HOME)
     }
 
@@ -562,12 +693,17 @@ class MainActivity : Activity() {
             }
             KeyEvent.KEYCODE_MENU -> {
                 if (first) {
-                    narrator?.stop()
+                    stopVoice()
+                    // The bar sits along the bottom: Lumo keeps quiet while it's up.
+                    lumo.hush()
                     actionBar.show(questActive = quests.active != null)
+                    syncLumo()
                 }
                 return Sink.SHELL
             }
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                // A fullscreen video takes Play/Pause for itself; otherwise it makes cards.
+                if (b.handleKey(e)) return Sink.BROWSE
                 if (first) makeCards(null)
                 return Sink.SHELL
             }
@@ -587,6 +723,12 @@ class MainActivity : Activity() {
         else KeyEvent(e.downTime, e.eventTime, e.action, KeyEvent.KEYCODE_DPAD_CENTER, e.repeatCount, e.metaState, e.deviceId, e.scanCode, e.flags, e.source)
 
     private fun browseBack(b: BrowseLayer) {
+        if (isVideoFullscreen(b)) {
+            // Back leaves fullscreen first, whatever page we're on; it isn't a history step.
+            b.goBack()
+            Sfx.back()
+            return
+        }
         if (pagesSinceHome > 1) {
             navigatingBack = true
             if (b.goBack()) {
@@ -597,6 +739,15 @@ class MainActivity : Activity() {
             navigatingBack = false
         }
         goHome()
+    }
+
+    /**
+     * True while an HTML5 video is fullscreen in the browser. BrowseLayer claims Play/Pause only in that
+     * state, and a key-up has no side effect there, so a Play/Pause release is a safe probe.
+     */
+    private fun isVideoFullscreen(b: BrowseLayer): Boolean {
+        val now = SystemClock.uptimeMillis()
+        return runCatching { b.handleKey(KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, 0)) }.getOrDefault(false)
     }
 
     private fun homeKey(e: KeyEvent, fromPhone: Boolean): Sink {
@@ -614,6 +765,8 @@ class MainActivity : Activity() {
                 return Sink.SHELL
             }
         }
+        // Someone is moving around Home: Lumo's line steps aside so the favorites row is clear.
+        if (first && isNavKey(code)) lumo.hush()
         return Sink.SYSTEM
     }
 
@@ -626,7 +779,7 @@ class MainActivity : Activity() {
         }
         lastBackAt = now
         val phones = hub?.players?.size ?: 0
-        toast.show(if (phones > 0) "Press Back again to leave Wander. Phones will disconnect." else "Press Back again to leave Wander.", ToastChip.Kind.INFO, EXIT_WINDOW_MS)
+        toast.show(if (phones > 0) "Press Back again to leave. Phones will disconnect." else "Press Back again to leave Wander.", ToastChip.Kind.INFO, EXIT_WINDOW_MS)
     }
 
     /** Hands the key to the window; for phone keys it also performs the focus move the system would have. */
@@ -722,15 +875,16 @@ class MainActivity : Activity() {
         setMode(Mode.CARDS)
         cards.showLoading(title)
         cardsLoading = true
-        lumo.thinking(true)
+        syncThinking()
         Async.cancel(cardsWatch)
         cardsWatch = Async.mainDelayed(WATCHDOG_MS) {
             guard("cards.watchdog") {
                 if (alive && req == cardsRequest && mode == Mode.CARDS && cardsLoading) {
                     cardsLoading = false
-                    lumo.thinking(false)
+                    syncThinking()
                     cards.showError("That page took too long to read. Try again in a moment?")
                     Sfx.fail()
+                    hub?.toast("That page took too long to read. Close the cards and try again?", "bad")
                 }
             }
         }
@@ -740,28 +894,28 @@ class MainActivity : Activity() {
                 if (!alive || req != cardsRequest || mode != Mode.CARDS) return@guard
                 if (page == null || page.text.isBlank()) {
                     cardsLoading = false
-                    lumo.thinking(false)
+                    syncThinking()
+                    // The overlay explains it on the TV; phones would otherwise wait on "making cards" forever.
                     cards.showError("I couldn't find much to read here. Articles work best!")
-                    lumo.say("This page is mostly pictures and buttons. Try an article?", Mood.CONCERNED)
                     Sfx.fail()
+                    hub?.toast("Lumo couldn't find much to read on this page. Articles work best!", "bad")
                     return@guard
                 }
                 ai.cards(page) { deck ->
                     guard("cards.deck") {
                         if (!alive || req != cardsRequest || mode != Mode.CARDS || !cardsLoading) return@guard
                         cardsLoading = false
-                        lumo.thinking(false)
+                        syncThinking()
                         noteAi()
                         if (deck.cards.isEmpty()) {
                             cards.showError("I couldn't turn this one into cards. Try another page!")
-                            lumo.say("Hmm, nothing card-shaped on this page.", Mood.CONCERNED)
                             Sfx.fail()
+                            hub?.toast("Lumo couldn't turn this page into cards. Try another one!", "bad")
                             return@guard
                         }
+                        // The deck lands with its own chime and hints. A single card is the "skip this
+                        // page" or "not much here" card, and it speaks for itself.
                         cards.showDeck(deck)
-                        Sfx.whoosh()
-                        val n = deck.cards.size
-                        lumo.say(if (deck.fromAi) "Here's the whole page in $n cards. Left and right to flip!" else "I made $n quick cards myself. Left and right to flip!", Mood.HAPPY)
                         publishState()
                     }
                 }
@@ -769,21 +923,51 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun cardsClosed() {
-        if (mode != Mode.CARDS) return
+    /** Stops a cards load or deck in flight, however it ended. Safe to call more than once. */
+    private fun endCards() {
         cardsRequest++
-        cardsLoading = false
         Async.cancel(cardsWatch)
-        lumo.thinking(false)
-        narrator?.stop()
-        setMode(Mode.BROWSE)
+        cardsWatch = null
+        cardsLoading = false
+        syncThinking()
+        stopVoice()
+    }
+
+    private fun cardsClosed() {
+        endCards()
+        if (mode == Mode.CARDS) setMode(Mode.BROWSE)
     }
 
     private fun readCard(card: Card) {
         val text = listOf(card.title, card.line).filter { it.isNotBlank() }.joinToString(". ")
         if (text.isBlank()) return
         val n = narrator
-        if (n != null) n.speak(text) else lumo.say(card.line, Mood.HAPPY)
+        if (n == null) {
+            toast.show(VOICE_MISSING, ToastChip.Kind.INFO, 4500)
+            return
+        }
+        n.speak(text)
+        // A TV with no working voice would otherwise just stay silent.
+        Async.cancel(voiceCheck)
+        voiceCheck = Async.mainDelayed(VOICE_CHECK_MS) {
+            voiceCheck = null
+            if (alive && mode == Mode.CARDS) toast.show(VOICE_MISSING, ToastChip.Kind.INFO, 4500)
+        }
+    }
+
+    private fun onNarratorSpeaking(on: Boolean) {
+        if (!alive) return
+        if (on) {
+            Async.cancel(voiceCheck)
+            voiceCheck = null
+        }
+        lumo.speaking(on)
+    }
+
+    private fun stopVoice() {
+        Async.cancel(voiceCheck)
+        voiceCheck = null
+        narrator?.stop()
     }
 
     // ---- quests -----------------------------------------------------------------------------------
@@ -791,6 +975,7 @@ class MainActivity : Activity() {
     private fun openQuestPicker() {
         if (mode == Mode.QUEST_PICKER) return
         actionBar.hide()
+        lumo.hush()
         questOverlay.showPicker(QuestCatalog.all)
         setMode(Mode.QUEST_PICKER)
     }
@@ -801,7 +986,13 @@ class MainActivity : Activity() {
         questOverlay.hideModal()
         if (mode != was) return // the overlay already reported how it closed
         when (was) {
-            Mode.QUEST_INTRO -> if (quests.board(questPlayers())?.complete == true) finaleDone() else enterQuestBrowse()
+            Mode.QUEST_INTRO ->
+                if (finaleShowing || quests.board(questPlayers())?.complete == true) finaleDone(QuestOverlay.FinaleChoice.BACK_TO_BROWSING)
+                else enterQuestBrowse()
+            Mode.QUEST_PICKER -> {
+                cancelLumoPick()
+                setMode(base)
+            }
             else -> setMode(base)
         }
     }
@@ -819,35 +1010,58 @@ class MainActivity : Activity() {
         startQuest(q, by, fresh)
     }
 
-    private fun lumoPick(by: Player?, fresh: Boolean = false) {
+    /**
+     * Asks the AI for a quest made from tonight's trail. Its answer is dropped if, meanwhile, another
+     * quest started, or (when asked from the picker) the family left the picker.
+     */
+    private fun lumoPick(by: Player?, fresh: Boolean = false, fromPicker: Boolean = false) {
         if (pickPending) return
         pickPending = true
-        lumo.thinking(true)
-        lumo.say("Let me dream one up from tonight's trail...", Mood.CURIOUS)
+        val token = ++pickToken
+        syncThinking()
+        // On the picker, the "Lumo's pick" card shows its own dreaming state.
+        if (!fromPicker) lumo.say("Let me dream one up from tonight's trail...", Mood.CURIOUS)
         hub?.toast("Lumo is dreaming up a quest...", "info")
         try {
             ai.newQuest(trail.toList()) { q ->
-                pickPending = false
                 guard("lumoPick") {
-                    if (!alive) return@guard
-                    lumo.thinking(false)
+                    if (!alive || token != pickToken) return@guard
+                    pickPending = false
+                    syncThinking()
                     noteAi()
+                    if (fromPicker && mode != Mode.QUEST_PICKER) return@guard
                     if (q == null) {
-                        tell(by, "My imagination is napping. Try one of the classic quests!", Mood.SLEEPY)
+                        val line = "My imagination is napping. Try one of the classic quests!"
+                        if (fromPicker) {
+                            questOverlay.resetLumoPick()
+                            toast.show(line, ToastChip.Kind.INFO)
+                        } else {
+                            tell(by, line, Mood.SLEEPY)
+                        }
                         return@guard
                     }
-                    startQuest(q, by, fresh)
+                    startQuest(q, by, fresh, fromPick = true)
                 }
             }
         } catch (t: Throwable) {
             pickPending = false
-            lumo.thinking(false)
+            syncThinking()
             throw t
         }
     }
 
+    /** A Lumo's pick still being dreamed up no longer matters: its answer must not start a quest. */
+    private fun cancelLumoPick() {
+        pickToken++
+        if (pickPending) {
+            pickPending = false
+            syncThinking()
+        }
+    }
+
     /** [fresh] opens the quest's starting search after the intro even if a page is already open. */
-    private fun startQuest(q: Quest, by: Player?, fresh: Boolean = false) {
+    private fun startQuest(q: Quest, by: Player?, fresh: Boolean = false, fromPick: Boolean = false) {
+        if (!fromPick) cancelLumoPick()
         freshQuestStart = fresh || base == Mode.HOME
         quests.start(q)
         checking = false
@@ -855,11 +1069,11 @@ class MainActivity : Activity() {
         finaleShowing = false
         Async.cancel(checkWatch)
         Async.cancel(finaleTask)
+        syncThinking()
         if (cards.isShowing) cards.close()
-        questOverlay.showIntro(q)
+        lumo.hush()
+        questOverlay.showIntro(q) // with its own chime
         setMode(Mode.QUEST_INTRO)
-        Sfx.chime()
-        lumo.say("New quest: ${q.title}! Find ${q.goal}. Phones, get ready.", Mood.HAPPY)
         home.setQuestLine(questLine())
         hub?.toast("Quest started: ${q.emoji} ${q.title}", "good")
         by?.let { hub?.toast("You started ${q.title}!", "good", it.id) }
@@ -883,6 +1097,8 @@ class MainActivity : Activity() {
         } else {
             setMode(Mode.BROWSE)
         }
+        // Said here, not over the intro card: now the family can actually see Lumo and act on it.
+        if (q != null) lumo.say("${q.emoji} ${q.title}: find ${q.goal}! Found one? Press Menu, or Submit on a phone.", Mood.HAPPY)
     }
 
     private fun submitQuest(by: Player?) {
@@ -913,7 +1129,7 @@ class MainActivity : Activity() {
         val req = ++questRequest
         checking = true
         questOverlay.showChecking(player)
-        lumo.thinking(true)
+        syncThinking()
         lumo.say("${player.name} thinks this page has it. Let me read...", Mood.CURIOUS)
         by?.let { hub?.toast("Lumo is checking your page...", "info", it.id) }
         publishState()
@@ -963,14 +1179,13 @@ class MainActivity : Activity() {
     private fun finishCheck(outcome: QuestOutcome, player: Player) {
         checking = false
         Async.cancel(checkWatch)
-        lumo.thinking(false)
-        questOverlay.showOutcome(outcome, player)
+        syncThinking()
+        questOverlay.showOutcome(outcome, player) // plays success / pop / fail itself
         syncBoard(force = true)
         val phone = hub?.player(player.id)
         when (outcome) {
             is QuestOutcome.Accepted -> {
                 val item = outcome.found.item
-                Sfx.success()
                 lumo.celebrate(Palette.player(player.colorIndex))
                 lumo.say("Yes! ${player.name} found $item. +${outcome.points}!", Mood.HAPPY)
                 if (phone != null) hub?.celebrate(phone.id, "+${outcome.points} $item!")
@@ -979,12 +1194,10 @@ class MainActivity : Activity() {
             is QuestOutcome.Duplicate -> {
                 val first = outcome.board.found.firstOrNull { it.item.equals(outcome.item, ignoreCase = true) }
                 val who = first?.let { nameOf(it.playerId) } ?: "Someone"
-                Sfx.fail()
                 lumo.say("$who already found ${outcome.item}! Can you find a different one?", Mood.CURIOUS)
                 phone?.let { hub?.toast("$who found ${outcome.item} first. Try another!", "bad", it.id) }
             }
             is QuestOutcome.Rejected -> {
-                Sfx.fail()
                 lumo.say(outcome.reason.ifBlank { "Not quite. Keep looking!" }, Mood.CONCERNED)
                 phone?.let { hub?.toast(outcome.reason.ifBlank { "Not quite. Keep looking!" }, "bad", it.id) }
             }
@@ -1007,26 +1220,29 @@ class MainActivity : Activity() {
         if (mode == Mode.CARDS) cards.close()
         if (rescue.isShowing || panel.isShowing) setMode(base)
         actionBar.hide()
+        // The finale celebrates on its own (confetti, podium, fanfare); Lumo cheers from the corner.
+        lumo.hush()
         questOverlay.showFinale(board)
         finaleShowing = true
         setMode(Mode.QUEST_INTRO)
-        Sfx.success()
         val winner = board.players.maxByOrNull { it.score }
         if (winner != null && winner.score > 0) {
             lumo.celebrate(Palette.player(winner.colorIndex))
-            lumo.say("Quest complete! ${winner.name} leads with ${winner.score} points.", Mood.HAPPY, 8000)
+            hub?.toast("Quest complete! ${winner.name} leads with ${winner.score} points.", "good")
         } else {
-            lumo.say("Quest complete! What a team.", Mood.HAPPY, 8000)
+            hub?.toast("Quest complete! What a team.", "good")
         }
     }
 
-    private fun finaleDone() {
+    /** The finale was closed with [choice]: "Another quest" opens the picker, anything else goes back. */
+    private fun finaleDone(choice: QuestOverlay.FinaleChoice?) {
         val wasShowing = finaleShowing
         endCompletedQuest()
-        // The finale's "Another quest" may open the picker itself; follow it if so.
-        when {
-            questOverlay.isModal && quests.active == null -> setMode(Mode.QUEST_PICKER)
-            wasShowing && mode == Mode.QUEST_INTRO -> setMode(if (browse?.currentUrl.isNullOrBlank()) Mode.HOME else base)
+        if (!wasShowing || mode != Mode.QUEST_INTRO) return
+        if (choice == QuestOverlay.FinaleChoice.ANOTHER_QUEST) {
+            openQuestPicker()
+        } else {
+            setMode(if (browse?.currentUrl.isNullOrBlank()) Mode.HOME else base)
         }
     }
 
@@ -1049,9 +1265,11 @@ class MainActivity : Activity() {
         val key = board?.let { b ->
             "${b.quest.id}|${b.found.size}|${b.complete}|" + b.players.joinToString(",") { "${it.id}:${it.score}:${it.colorIndex}" }
         }
-        if (!force && key == boardKey) return
-        boardKey = key
-        questOverlay.showBoard(board)
+        if (force || key != boardKey) {
+            boardKey = key
+            questOverlay.showBoard(board)
+        }
+        syncToastAnchor()
     }
 
     private fun questLine(): String? {
@@ -1086,9 +1304,9 @@ class MainActivity : Activity() {
         rescueSignal = signal
         rescueOptions = options
         actionBar.hide()
-        lumo.mood = Mood.SLEEPY
+        lumo.hush()
         rescue.show(signal, advice.line.ifBlank { signal.headline }, options)
-        setMode(Mode.RESCUE)
+        setMode(Mode.RESCUE) // Lumo turns sleepy for it
         Sfx.chime()
         noteAi()
     }
@@ -1113,7 +1331,7 @@ class MainActivity : Activity() {
             if (n < q.goal) return RescueOption(RescueOption.Kind.QUEST, "Back to ${q.title} ${q.emoji}", "$n of ${q.goal} found. Lumo has a hunch where to look.", questId = q.id)
         }
         val pick = QuestCatalog.all.filter { it.id != quests.active?.id }.randomOrNull()
-            ?: return RescueOption(RescueOption.Kind.QUEST, "Let Lumo pick a quest 🦋", "A treasure hunt made from tonight's trail.", questId = LUMO_PICK)
+            ?: return RescueOption(RescueOption.Kind.QUEST, "Let Lumo pick a quest ✨", "A treasure hunt made from tonight's trail.", questId = LUMO_PICK)
         return RescueOption(RescueOption.Kind.QUEST, "Start ${pick.title} ${pick.emoji}", pick.prompt, questId = pick.id)
     }
 
@@ -1123,15 +1341,15 @@ class MainActivity : Activity() {
         rescueSignal = null
         rescueOptions = emptyList()
         signal?.let { drift.accepted(it) }
-        Sfx.select()
+        // The overlay already played its select sound; leaving RESCUE wakes Lumo up again.
         when (option.kind) {
             RescueOption.Kind.QUEST -> {
                 val active = quests.active
                 val id = option.questId ?: LUMO_PICK
                 setMode(Mode.BROWSE)
                 if (active != null && active.id == id) {
+                    // Stay on this page: it may be the very one they were about to send.
                     lumo.say("Back on the trail! ${quests.found.size} of ${active.goal} found.", Mood.HAPPY)
-                    browse?.open(Detours.startQuery(active), null)
                 } else {
                     startQuestById(id, null, fresh = true)
                 }
@@ -1158,7 +1376,6 @@ class MainActivity : Activity() {
         rescueSignal = null
         rescueOptions = emptyList()
         setMode(Mode.BROWSE)
-        lumo.mood = Mood.CURIOUS
         lumo.say("Okay, carry on! I'll nudge less for that one.", Mood.CURIOUS, 4000)
     }
 
@@ -1167,6 +1384,7 @@ class MainActivity : Activity() {
     private fun openCompanionPanel() {
         if (panel.isShowing) return
         actionBar.hide()
+        lumo.hush()
         panel.show(drift.stats(), trail.toList(), aiOnline, config.nudgesOn, config.demoMode)
         setMode(Mode.COMPANION)
     }
@@ -1214,7 +1432,8 @@ class MainActivity : Activity() {
 
     private fun typeFromPhone(player: Player, text: String, submit: Boolean) {
         val b = browse
-        if (mode == Mode.BROWSE && b != null && fieldFocused) {
+        if (mode == Mode.BROWSE && b != null) {
+            // Into the focused page field; with none focused the browser decides (it may search).
             b.typeText(text, submit)
             return
         }
@@ -1228,9 +1447,9 @@ class MainActivity : Activity() {
             }
             return
         }
-        if (mode == Mode.BROWSE && b != null) {
-            // No page field focused: let the browser decide (it may type into the page or search).
-            b.typeText(text, submit)
+        if (fieldFocused) {
+            // Something covers the page the field is on; typing must never turn into a web search.
+            hub?.toast("Close what's on the TV first, then type into the page.", "info", player.id)
             return
         }
         if (submit && text.isNotBlank()) openInBrowse(text, player, fromHome = false)
@@ -1245,9 +1464,23 @@ class MainActivity : Activity() {
             "down" -> injectKey(KeyEvent.KEYCODE_DPAD_DOWN)
             "left" -> injectKey(KeyEvent.KEYCODE_DPAD_LEFT)
             "right" -> injectKey(KeyEvent.KEYCODE_DPAD_RIGHT)
-            "enter", "ok", "select" -> injectKey(KeyEvent.KEYCODE_DPAD_CENTER)
+            "enter", "ok", "select" -> phoneEnter()
             "playpause" -> injectKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
             else -> hub?.toast("That button isn't wired up yet.", "info", player.id)
+        }
+    }
+
+    /** Enter in the field being typed into (a page field, or Home's search); anywhere else it's OK. */
+    private fun phoneEnter() {
+        val b = browse
+        when {
+            mode == Mode.BROWSE && fieldFocused && b != null -> {
+                // An overlay may have taken Android focus from the page; give it back so the field gets Enter.
+                if (!b.hasFocus()) b.requestFocus()
+                injectKey(KeyEvent.KEYCODE_ENTER)
+            }
+            mode == Mode.HOME && homeSearchOpen -> injectKey(KeyEvent.KEYCODE_ENTER)
+            else -> injectKey(KeyEvent.KEYCODE_DPAD_CENTER)
         }
     }
 
@@ -1269,6 +1502,15 @@ class MainActivity : Activity() {
         padX = 0f
         padY = 0f
         injectKey(code)
+    }
+
+    /** While another app has the TV, phone presses wait; tell the phone why (now and then, not per swipe). */
+    private fun tellInBackground(player: Player) {
+        val now = SystemClock.uptimeMillis()
+        val last = backgroundToldAt[player.id]
+        if (last != null && now - last < BACKGROUND_NOTE_EVERY_MS) return
+        backgroundToldAt[player.id] = now
+        hub?.toast("Wander isn't on the TV screen right now. Open it on the TV to keep going.", "info", player.id)
     }
 
     private fun playersChanged() {
@@ -1316,6 +1558,12 @@ class MainActivity : Activity() {
     private fun buildState(): TvState {
         val browsing = base == Mode.BROWSE
         val b = browse
+        // A field only counts as "being typed into" while its screen is the one in front.
+        val typing = when (mode) {
+            Mode.BROWSE -> fieldFocused
+            Mode.HOME -> homeSearchOpen
+            else -> false
+        }
         return TvState(
             mode = mode,
             title = if (browsing) b?.currentTitle.orEmpty() else "",
@@ -1326,8 +1574,12 @@ class MainActivity : Activity() {
             cardTitle = if (mode == Mode.CARDS) cardTitle else null,
             rescue = if (mode == Mode.RESCUE) rescueSignal else null,
             rescueOptions = if (mode == Mode.RESCUE) rescueOptions else emptyList(),
-            textFieldFocused = if (browsing) fieldFocused else homeSearchOpen,
-            fieldLabel = if (browsing) fieldLabel else if (homeSearchOpen) "Search" else null,
+            textFieldFocused = typing,
+            fieldLabel = when {
+                !typing -> null
+                mode == Mode.BROWSE -> fieldLabel
+                else -> "Search"
+            },
             checking = checking,
             aiOnline = aiOnline,
             quests = QuestCatalog.all,
@@ -1363,13 +1615,14 @@ class MainActivity : Activity() {
 
         override fun onPageFinished(url: String, title: String) = guard("browse.finished") {
             navigatingBack = false
-            drift.onPageLoad(url)
+            // Quest hunting hops from page to page on purpose; it doesn't count toward drift.
+            if (!questHunting()) drift.onPageLoad(url)
             addTrail(title)
             publishState()
         }
 
         override fun onUserClick() = guard("browse.click") { drift.onClick() }
-        override fun onUserScroll() = guard("browse.scroll") { drift.onScroll() }
+        override fun onUserScroll() = guard("browse.scroll") { if (!questHunting()) drift.onScroll() }
 
         override fun onTextFieldFocus(focused: Boolean, label: String?) = guard("browse.field") {
             fieldFocused = focused
@@ -1387,7 +1640,7 @@ class MainActivity : Activity() {
         override fun onCardsClosed() = guard("cards.closed") { cardsClosed() }
 
         override fun onCardChanged(index: Int, count: Int, card: Card) = guard("cards.changed") {
-            narrator?.stop()
+            stopVoice()
             cardIndex = index
             cardCount = count
             cardTitle = card.title
@@ -1398,13 +1651,18 @@ class MainActivity : Activity() {
     }
 
     private val questListener = object : QuestOverlay.Listener {
-        override fun onQuestPicked(quest: Quest) = guard("quest.picked") { startQuest(quest, null) }
-        override fun onLumoPickRequested() = guard("quest.lumo") { lumoPick(null) }
-        override fun onQuestPickerClosed() = guard("quest.pickerClosed") { if (mode == Mode.QUEST_PICKER) setMode(base) }
+        // The picker only opens from Home or after a finale: either way the quest gets its own starting search.
+        override fun onQuestPicked(quest: Quest) = guard("quest.picked") { startQuest(quest, null, fresh = true) }
+        override fun onLumoPickRequested() = guard("quest.lumo") { lumoPick(null, fresh = true, fromPicker = true) }
+        override fun onQuestPickerClosed() = guard("quest.pickerClosed") {
+            cancelLumoPick()
+            if (mode == Mode.QUEST_PICKER) setMode(base)
+        }
         override fun onIntroDismissed() = guard("quest.intro") { if (mode == Mode.QUEST_INTRO) enterQuestBrowse() }
         override fun onFinaleDismissed() = guard("quest.finale") {
-            // Let the overlay finish its own transition (it may open the picker), then follow it.
-            root.post { guard("quest.finale.post") { if (alive) finaleDone() } }
+            // Read the choice now (it resets on the next finale); act once the overlay has finished closing.
+            val choice = questOverlay.finaleChoice
+            root.post { guard("quest.finale.post") { if (alive) finaleDone(choice) } }
         }
     }
 
@@ -1417,13 +1675,13 @@ class MainActivity : Activity() {
         override fun onToggleNudges(on: Boolean) = guard("panel.nudges") {
             config.nudgesOn = on
             drift.enabled = on
-            lumo.say(if (on) "Nudges on. I'll tap your shoulder if we start circling." else "Nudges off. I'll stay quiet, promise.", Mood.HAPPY, 4000)
+            toast.show(if (on) "Nudges on." else "Nudges off. Lumo stays quiet.", ToastChip.Kind.INFO)
         }
 
         override fun onToggleDemo(on: Boolean) = guard("panel.demo") {
             config.demoMode = on
             drift.demoMode = on
-            toast.show(if (on) "Demo mode on: nudges come quickly." else "Demo mode off.", ToastChip.Kind.INFO)
+            toast.show(if (on) "Demo mode on: quick nudges." else "Demo mode off.", ToastChip.Kind.INFO)
         }
 
         override fun onCompanionPanelClosed() = guard("panel.closed") { closeCompanionPanel() }
@@ -1441,13 +1699,14 @@ class MainActivity : Activity() {
             }
         }
 
-        override fun onActionBarHidden() = Unit
+        // Lumo's bubble may come back to the corner.
+        override fun onActionBarHidden() = guard("bar.hidden") { if (alive) syncLumo() }
     }
 
     private val hubListener = object : PhoneHub.Listener {
         override fun onPlayerJoined(player: Player) = guard("hub.joined") {
             if (!alive) return@guard
-            Sfx.join()
+            if (resumed) Sfx.join()
             lumo.say(Lines.playerJoined(player.name), Mood.HAPPY, 4000)
             lumo.celebrate(Palette.player(player.colorIndex))
             playersChanged()
@@ -1460,6 +1719,10 @@ class MainActivity : Activity() {
 
         override fun onCommand(player: Player, command: PhoneCommand) = guard("hub.command") {
             if (!alive || isFinishing) return@guard
+            if (!resumed) {
+                tellInBackground(player)
+                return@guard
+            }
             handleCommand(player, command)
         }
     }
@@ -1480,5 +1743,23 @@ class MainActivity : Activity() {
         const val WATCHDOG_MS = 25_000L
         const val PAD_STEP = 90f
         const val PAD_IDLE_MS = 350L
+        /** Phone hub retries: every 2 s for ~20 s, then every 30 s. */
+        const val HUB_RETRY_MS = 2_000L
+        const val HUB_QUICK_TRIES = 10
+        const val HUB_SLOW_RETRY_MS = 30_000L
+        const val BACKGROUND_NOTE_EVERY_MS = 5_000L
+        /** Polly waits up to 4 s before the TV voice takes over; past this, no voice is coming. */
+        const val VOICE_CHECK_MS = 7_000L
+        const val VOICE_MISSING = "Lumo's voice isn't working on this TV right now. Read along on the card!"
+        // Toast chip anchors (dp), per screen.
+        const val TOAST_SIDE_DP = Dimens.SAFE_H + 200f
+        const val TOAST_HOME_END_DP = 288f
+        const val TOAST_HOME_TOP_DP = 108f
+        const val TOAST_BROWSE_TOP_DP = Dimens.SAFE_V + 58f + 8f
+        const val TOAST_BOARD_SPACE_DP = 278f
+        /** The Lumo panel ends at x 697dp. */
+        const val TOAST_PANEL_START_DP = 712f
+        const val TOAST_RESCUE_END_DP = 240f
+        const val TOAST_RESCUE_TOP_DP = 455f
     }
 }

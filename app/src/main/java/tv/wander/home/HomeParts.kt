@@ -2,11 +2,13 @@ package tv.wander.home
 
 import android.animation.ValueAnimator
 import android.content.Context
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import tv.wander.model.Player
@@ -67,22 +69,34 @@ internal fun Context.circle(color: Int): GradientDrawable = GradientDrawable().a
     setColor(color)
 }
 
-/** A Home hero tile: emoji in a tinted disc, a serif title and a short caption. Field-guide card proportions. */
+/**
+ * A Home hero tile: emoji in a tinted disc, a serif title and a short caption. Field-guide card proportions.
+ * [icon], when given, is drawn in the disc instead of the emoji (Lumo's own moth).
+ */
 internal class HeroTile(
     context: Context,
     val emoji: String,
     val title: String,
     val subtitle: String,
     val tint: Int,
+    icon: Drawable? = null,
 ) : LinearLayout(context) {
     init {
         orientation = VERTICAL
         background = context.washedCard(tint, Dimens.RADIUS, 0.28f)
         val pad = dpi(13f)
         setPadding(pad, dpi(14f), pad, dpi(10f))
-        val badge = Ui.text(context, 26f, Palette.CREAM, Fonts.body, emoji).apply {
-            gravity = Gravity.CENTER
-            background = context.circle(Palette.withAlpha(tint, 0.20f))
+        val badge: View = if (icon != null) {
+            ImageView(context).apply {
+                setImageDrawable(icon)
+                scaleType = ImageView.ScaleType.CENTER
+                background = context.circle(Palette.withAlpha(tint, 0.20f))
+            }
+        } else {
+            Ui.text(context, 26f, Palette.CREAM, Fonts.body, emoji).apply {
+                gravity = Gravity.CENTER
+                background = context.circle(Palette.withAlpha(tint, 0.20f))
+            }
         }
         addView(badge, LayoutParams(dpi(48f), dpi(48f)))
         addView(
@@ -126,11 +140,13 @@ internal class FavoriteTile(context: Context, val favorite: Favorite) : LinearLa
 }
 
 /**
- * One of the four seats on the couch. Empty: a dashed outline in the color the next phone would get,
- * breathing softly. Taken: filled in the player's color with their name.
+ * One of the four seats on the couch, as a round dot (the full names are listed under the code).
+ * Empty: a dashed ring in the color the next phone would get, breathing softly. Taken: filled in the
+ * player's color with their initial.
  */
 internal class SeatPill(context: Context) : TextView(context) {
     private var pulse: ValueAnimator? = null
+    private var empty = false
     var player: Player? = null
         private set
 
@@ -140,32 +156,32 @@ internal class SeatPill(context: Context) : TextView(context) {
         includeFontPadding = false
         gravity = Gravity.CENTER
         maxLines = 1
-        ellipsize = TextUtils.TruncateAt.END
-        setPadding(dpi(8f), 0, dpi(8f), 0)
+        setPadding(0, 0, 0, 0)
     }
 
     fun bindEmpty(colorIndex: Int) {
         player = null
-        val color = Palette.player(colorIndex)
-        text = Palette.PLAYER_COLOR_NAMES[((colorIndex % 4) + 4) % 4]
-        setTextColor(Palette.withAlpha(color, 0.75f))
+        empty = true
+        val i = ((colorIndex % 4) + 4) % 4
+        val color = Palette.player(i)
+        text = ""
         background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(13f)
-            setColor(Palette.withAlpha(color, 0.06f))
-            setStroke(dpi(1.5f), Palette.withAlpha(color, 0.7f), dp(5f), dp(4f))
+            shape = GradientDrawable.OVAL
+            setColor(Palette.withAlpha(color, 0.08f))
+            setStroke(dpi(1.5f), Palette.withAlpha(color, 0.75f), dp(4f), dp(3f))
         }
-        contentDescription = "Empty seat"
+        contentDescription = "Empty seat: the next phone gets ${Palette.PLAYER_COLOR_NAMES[i]}"
         startPulse()
     }
 
     fun bindPlayer(p: Player) {
         player = p
+        empty = false
         stopPulse()
         alpha = 1f
-        text = p.name
+        text = p.name.trim().firstOrNull()?.uppercase() ?: "?"
         setTextColor(Palette.INK)
-        background = Ui.roundRect(context, Palette.player(p.colorIndex), 13f)
+        background = context.circle(Palette.player(p.colorIndex))
         contentDescription = "${p.name} is on the couch"
     }
 
@@ -183,7 +199,7 @@ internal class SeatPill(context: Context) : TextView(context) {
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (player == null && text.isNotEmpty()) startPulse()
+        if (player == null && empty) startPulse()
     }
 
     override fun onDetachedFromWindow() {
@@ -193,7 +209,7 @@ internal class SeatPill(context: Context) : TextView(context) {
 
     override fun onVisibilityAggregated(isVisible: Boolean) {
         super.onVisibilityAggregated(isVisible)
-        if (!isVisible) stopPulse() else if (player == null && text.isNotEmpty()) startPulse()
+        if (!isVisible) stopPulse() else if (player == null && empty) startPulse()
     }
 }
 

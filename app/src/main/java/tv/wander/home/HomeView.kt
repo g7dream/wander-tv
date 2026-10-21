@@ -14,6 +14,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import tv.wander.cards.MothDrawable
 import tv.wander.model.Player
 import tv.wander.ui.Dimens
 import tv.wander.ui.Fonts
@@ -113,7 +114,8 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
             HeroTile(context, "🔎", "Search", "Type on your phone or hold the mic", Palette.LAMP),
             HeroTile(context, "🧭", "Quests", "Family treasure hunts", Palette.BERRY),
             HeroTile(context, "⭐", "Favorites", "Sites that read well on TV", Palette.MINT),
-            HeroTile(context, "🦋", "Lumo", "Your browsing buddy", Palette.SKY),
+            // Lumo is a moth, not a butterfly: the tile draws the same moth as the cards and quests.
+            HeroTile(context, "", "Lumo", "Your browsing buddy", Palette.SKY, icon = MothDrawable(Palette.LAMP, dpi(34f))),
         )
         val tileW = (COLUMN_RIGHT - Dimens.SAFE_H - TILE_GAP * 3) / 4f
         tiles.forEachIndexed { i, t ->
@@ -157,6 +159,11 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
 
     fun setPlayers(players: List<Player>) {
         joinPanel.setPlayers(players)
+    }
+
+    /** False while phones can't connect yet (the TV's phone port is busy): the join code is held back. */
+    fun setPhonesReady(ready: Boolean) {
+        joinPanel.setPhonesReady(ready)
     }
 
     fun setAiOnline(online: Boolean) {

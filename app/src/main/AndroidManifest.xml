@@ -10,6 +10,14 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
 
+    <!-- Android 11+ (Fire OS 8) hides other apps' services unless declared: without this the TV's own
+         text-to-speech engine is invisible and Lumo can't read cards aloud offline. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:banner="@drawable/banner"

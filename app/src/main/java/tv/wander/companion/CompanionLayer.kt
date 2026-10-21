@@ -12,6 +12,7 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
+import android.os.SystemClock
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
@@ -41,8 +42,28 @@ import kotlin.math.min
  * keys. [say] with a mood shows that mood only while the line is on screen, then Lumo eases back
  * to the resting [mood]. Lines reveal with a quick typewriter and hide after `holdMs` (counted from
  * the end of the reveal; `holdMs <= 0` keeps the line up until the next [say] or [hush]).
+ *
+ * [setPlacement] keeps the bubble out of the way of whatever screen is up: next to Lumo's face while
+ * browsing ([Placement.CORNER]), along the bottom of Home ([Placement.FOOTER]), or hidden while a
+ * full-screen overlay owns the TV ([Placement.QUIET]).
  */
 class CompanionLayer(context: Context) : FrameLayout(context) {
+    /** Where the speech bubble goes. */
+    enum class Placement {
+        /** Next to Lumo's face in the bottom-right corner (browsing). */
+        CORNER,
+
+        /** One wide strip along the bottom of Home, left of big Lumo, clear of the tiles and favorites. */
+        FOOTER,
+
+        /**
+         * No bubble while a full-screen overlay (cards, quests, rescue, panel, action bar) owns the screen.
+         * A line said meanwhile still sets Lumo's mood, and it shows once the bubble may come back, if it
+         * hasn't run out by then.
+         */
+        QUIET,
+    }
+
     /** Lumo's resting mood. Setting it shows immediately and ends any per-line mood. */
     var mood: Mood = Mood.CURIOUS
         set(value) {
@@ -63,6 +84,15 @@ class CompanionLayer(context: Context) : FrameLayout(context) {
     private var bubbleShowing = false
     private var scaleNow = SMALL_SCALE
     private var big = false
+
+    /** Where the bubble currently goes; see [setPlacement]. */
+    var placement: Placement = Placement.CORNER
+        private set
+
+    /** The line Lumo is saying (shown, or held back while QUIET); null when Lumo is quiet. */
+    private var lineText: String? = null
+    /** Uptime when [lineText] runs out; Long.MAX_VALUE keeps it until the next say() or hush(). */
+    private var lineEndsAt = 0L
 
     init {
         clipChildren = false
@@ -117,12 +147,21 @@ class CompanionLayer(context: Context) : FrameLayout(context) {
         lineMood = mood
         lumo.mood = mood ?: this.mood
 
+        val total = (line.length * CHAR_MS).coerceIn(MIN_REVEAL_MS, MAX_REVEAL_MS)
+        lineText = line
+        lineEndsAt = if (holdMs > 0) SystemClock.uptimeMillis() + total + holdMs else Long.MAX_VALUE
+        if (placement == Placement.QUIET) {
+            // Something full-screen is up: keep the line (and its mood) and show it later if still fresh.
+            if (bubbleShowing) fadeOutBubble(fast = true)
+            scheduleQuietEnd()
+            return
+        }
+
         val spannable = SpannableString(line)
         spannable.setSpan(hidden, 0, line.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
         this.text.setText(spannable, TextView.BufferType.SPANNABLE)
         showBubble()
 
-        val total = (line.length * CHAR_MS).coerceIn(MIN_REVEAL_MS, MAX_REVEAL_MS)
         reveal = ValueAnimator.ofInt(0, line.length).apply {
             duration = total
             addUpdateListener { a -> revealTo(a.animatedValue as Int) }
@@ -135,7 +174,7 @@ class CompanionLayer(context: Context) : FrameLayout(context) {
                 override fun onAnimationEnd(animation: Animator) {
                     if (cancelled) return
                     revealTo(Int.MAX_VALUE)
-                    if (holdMs > 0) hideTask = Async.mainDelayed(holdMs) { hideBubble(fast = false) }
+                    if (holdMs > 0) hideTask = Async.mainDelayed(holdMs) { endLine(fast = false) }
                 }
             })
             start()
@@ -151,12 +190,39 @@ class CompanionLayer(context: Context) : FrameLayout(context) {
         lumo.celebrate(color)
     }
 
-    /** Hides the bubble right away. Lumo stays. */
+    /** Hides the bubble right away (and forgets a line held back while quiet). Lumo stays. */
     fun hush() {
         Async.cancel(hideTask)
         hideTask = null
         reveal?.cancel()
-        hideBubble(fast = true)
+        endLine(fast = true)
+    }
+
+    /**
+     * Moves the bubble for the screen that is up. Going [Placement.QUIET] hides the bubble but lets the
+     * line run on; coming back shows it again for whatever is left of its hold time.
+     */
+    fun setPlacement(placement: Placement) {
+        if (placement == this.placement) return
+        val was = this.placement
+        this.placement = placement
+        if (placement == Placement.QUIET) {
+            reveal?.cancel()
+            if (bubbleShowing) fadeOutBubble(fast = true)
+            scheduleQuietEnd()
+            return
+        }
+        layoutBubble()
+        if (was != Placement.QUIET) return
+        val line = lineText ?: return
+        Async.cancel(hideTask)
+        hideTask = null
+        val left = lineEndsAt - SystemClock.uptimeMillis()
+        when {
+            lineEndsAt == Long.MAX_VALUE -> say(line, lineMood, 0)
+            left >= MIN_REPLAY_MS -> say(line, lineMood, (left - MAX_REVEAL_MS).coerceAtLeast(MIN_REPLAY_MS / 2))
+            else -> endLine(fast = true)
+        }
     }
 
     /** Large on Home and during a rescue; small in the corner while browsing. */
@@ -205,6 +271,39 @@ class CompanionLayer(context: Context) : FrameLayout(context) {
         sizeAnim = null
     }
 
+    /** While quiet, a line still runs out (and its mood fades) on time even though nobody saw it. */
+    private fun scheduleQuietEnd() {
+        Async.cancel(hideTask)
+        hideTask = null
+        if (lineText == null || lineEndsAt == Long.MAX_VALUE) return
+        val left = lineEndsAt - SystemClock.uptimeMillis()
+        if (left <= 0) {
+            endLine(fast = true)
+            return
+        }
+        hideTask = Async.mainDelayed(left) { endLine(fast = true) }
+    }
+
+    /** Bubble geometry for the current placement (a QUIET bubble keeps the last one; it is hidden anyway). */
+    private fun layoutBubble() {
+        val lp = bubble.layoutParams as? LayoutParams ?: return
+        val footer = placement == Placement.FOOTER
+        val padV = if (footer) FOOTER_PAD_V else BUBBLE_PAD_V
+        text.maxWidth = dpi((if (footer) FOOTER_MAX_DP else BUBBLE_MAX_DP) - BUBBLE_PAD_H * 2 - TAIL_DP)
+        text.maxLines = if (footer) 2 else 5
+        // On Home the strip spans the whole footer row, so it reads as one calm line, not a stray box.
+        bubble.minimumWidth = if (footer) dpi(FOOTER_MAX_DP) else 0
+        bubble.setPadding(dpi(BUBBLE_PAD_H), dpi(padV), dpi(BUBBLE_PAD_H + TAIL_DP), dpi(padV + 2f))
+        // Both keep the big corner bubble's right edge: the tail tip just left of big Lumo's wing.
+        lp.bottomMargin = if (footer) {
+            dpi(Dimens.SAFE_V)
+        } else {
+            dpi(Dimens.SAFE_V + 4f + (HEAD_FROM_BOTTOM - INSET_BOTTOM) * BIG_DP - TAIL_FROM_BOTTOM_DP)
+        }
+        bubble.layoutParams = lp
+        applyScale(scaleNow)
+    }
+
     // ------------------------------------------------------------------ internals
 
     private fun revealTo(count: Int) {
@@ -237,11 +336,17 @@ class CompanionLayer(context: Context) : FrameLayout(context) {
         applyScale(scaleNow)
     }
 
-    private fun hideBubble(fast: Boolean) {
+    /** The line is over: the bubble goes and Lumo eases back to its resting mood. */
+    private fun endLine(fast: Boolean) {
         hideTask = null
+        lineText = null
         val restore = lineMood != null
         lineMood = null
         if (restore) lumo.mood = mood
+        fadeOutBubble(fast)
+    }
+
+    private fun fadeOutBubble(fast: Boolean) {
         if (!bubbleShowing) return
         bubbleShowing = false
         bubble.animate().cancel()
@@ -263,8 +368,14 @@ class CompanionLayer(context: Context) : FrameLayout(context) {
         // Keep the moth's own corner (not the halo box) anchored as it scales.
         lumo.translationX = -dp(INSET_X * BIG_DP) * shrink
         lumo.translationY = -dp(INSET_BOTTOM * BIG_DP) * shrink
-        bubble.translationX = dp((1f - 2f * INSET_X) * BIG_DP) * shrink
-        bubble.baseTranslationY = dp((HEAD_FROM_BOTTOM - INSET_BOTTOM) * BIG_DP) * shrink
+        if (placement == Placement.FOOTER) {
+            // Home's strip stays put along the bottom; only the corner bubble follows Lumo's face.
+            bubble.translationX = 0f
+            bubble.baseTranslationY = 0f
+        } else {
+            bubble.translationX = dp((1f - 2f * INSET_X) * BIG_DP) * shrink
+            bubble.baseTranslationY = dp((HEAD_FROM_BOTTOM - INSET_BOTTOM) * BIG_DP) * shrink
+        }
     }
 
     /** The bubble container: rounded dusk surface with a tail pointing right at Lumo. */
@@ -354,6 +465,12 @@ class CompanionLayer(context: Context) : FrameLayout(context) {
         const val INSET_BOTTOM = 0.135f
         const val HEAD_FROM_BOTTOM = 0.55f
         const val BUBBLE_MAX_DP = 380f
+        /** Home's footer bubble: from the left safe edge to just before big Lumo's wing. */
+        const val FOOTER_MAX_DP = 678f
+        /** Keeps the one-line strip below the favorites row (it ends 68dp above the screen's bottom). */
+        const val FOOTER_PAD_V = 7f
+        /** A held-back line is only worth showing if this much of it is left. */
+        const val MIN_REPLAY_MS = 1800L
         const val BUBBLE_PAD_H = 22f
         const val BUBBLE_PAD_V = 16f
         const val TAIL_DP = 18f
