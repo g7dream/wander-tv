@@ -44,18 +44,22 @@ internal class TitleStrip(context: Context) : LinearLayout(context) {
         ellipsize = TextUtils.TruncateAt.MIDDLE
         background = Ui.roundRect(context, Palette.withAlpha(Palette.INK, 0.55f), 14f, Palette.HAIRLINE, 1f)
         setPadding(dpi(12f), dpi(5f), dpi(12f), dpi(6f))
-        maxWidth = dpi(260f)
+        maxWidth = dpi(DOMAIN_MAX_DP)
     }
     private val notice = Ui.text(context, TypeScale.CAPTION, Palette.CREAM, Fonts.bodyBold).apply {
         maxLines = 1
         ellipsize = TextUtils.TruncateAt.END
         background = Ui.roundRect(context, Palette.withAlpha(Palette.CORAL, 0.20f), 14f, Palette.withAlpha(Palette.CORAL, 0.75f), 1.5f)
         setPadding(dpi(12f), dpi(5f), dpi(14f), dpi(6f))
-        maxWidth = dpi(360f)
+        maxWidth = dpi(NOTICE_MAX_DP)
         visibility = View.GONE
     }
     private val driverDot = DriverDot(context)
-    private val driverName = Ui.text(context, TypeScale.BODY, Palette.LAMP, Fonts.bodyBold).apply { maxLines = 1 }
+    private val driverName = Ui.text(context, TypeScale.BODY, Palette.LAMP, Fonts.bodyBold).apply {
+        maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
+        maxWidth = dpi(DRIVER_MAX_DP)
+    }
     private val driverCaption = Ui.text(context, TypeScale.CAPTION, Palette.MUTED, Fonts.body, "driving").apply { maxLines = 1 }
 
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -85,6 +89,8 @@ internal class TitleStrip(context: Context) : LinearLayout(context) {
     private var dimTarget = 0f
     private var shownPage: Pair<String, String>? = null
     private var shownDriver: Pair<String, Int>? = null
+    private var hasDomain = false
+    private var compact = false
 
     init {
         orientation = HORIZONTAL
@@ -117,7 +123,8 @@ internal class TitleStrip(context: Context) : LinearLayout(context) {
         val host = if (web) PageTexts.hostLabel(url) else null
         title.text = pageTitle.ifBlank { host ?: "Wander" }
         domain.text = host ?: ""
-        domain.visibility = if (host.isNullOrEmpty()) View.GONE else View.VISIBLE
+        hasDomain = !host.isNullOrEmpty()
+        applyDomainVisibility()
         val initialFrom = if (web) PageTexts.siteLabel(url) else pageTitle
         iconTile.setLetter(initialFrom.firstOrNull { it.isLetterOrDigit() }?.uppercaseChar() ?: 'W')
     }
@@ -132,16 +139,37 @@ internal class TitleStrip(context: Context) : LinearLayout(context) {
         driverDot.setColor(color)
     }
 
+    /**
+     * Compact mode for a narrower strip (the quest scoreboard holds the top-right corner): chips get
+     * smaller caps, and a notice briefly takes the domain chip's place, so the "driving" chip always fits.
+     */
+    fun setCompact(on: Boolean) {
+        if (compact == on) return
+        compact = on
+        domain.maxWidth = dpi(if (on) DOMAIN_MAX_COMPACT_DP else DOMAIN_MAX_DP)
+        notice.maxWidth = dpi(if (on) NOTICE_MAX_COMPACT_DP else NOTICE_MAX_DP)
+        driverName.maxWidth = dpi(if (on) DRIVER_MAX_COMPACT_DP else DRIVER_MAX_DP)
+        applyDomainVisibility()
+    }
+
+    private fun applyDomainVisibility() {
+        val show = hasDomain && !(compact && notice.visibility == View.VISIBLE)
+        val v = if (show) View.VISIBLE else View.GONE
+        if (domain.visibility != v) domain.visibility = v
+    }
+
     /** Shows a short notice chip; null hides it. */
     fun setNotice(text: String?) {
         if (text.isNullOrBlank()) {
             notice.visibility = View.GONE
+            applyDomainVisibility()
         } else {
             notice.text = text
             notice.visibility = View.VISIBLE
             notice.alpha = 0f
             notice.translationY = dp(6f)
             notice.animate().alpha(1f).translationY(0f).setDuration(220).setInterpolator(DecelerateInterpolator()).start()
+            applyDomainVisibility()
         }
     }
 
@@ -271,6 +299,12 @@ internal class TitleStrip(context: Context) : LinearLayout(context) {
         const val MIN_PROGRESS = 0.04f
         const val PROGRESS_EASE_MS = 260L
         const val PROGRESS_FADE_MS = 360f
+        const val DOMAIN_MAX_DP = 260f
+        const val DOMAIN_MAX_COMPACT_DP = 180f
+        const val NOTICE_MAX_DP = 360f
+        const val NOTICE_MAX_COMPACT_DP = 250f
+        const val DRIVER_MAX_DP = 220f
+        const val DRIVER_MAX_COMPACT_DP = 150f
     }
 
     /** Rounded tile with the site's favicon on cream, or the domain's initial on lamp amber. */

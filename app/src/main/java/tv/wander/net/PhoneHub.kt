@@ -18,9 +18,11 @@ import java.io.IOException
  *   all read through [assets] with asset-relative paths.
  * - A phone becomes a player with its `hello`. At most four players are connected at once; a fifth
  *   gets `{"t":"reject","reason":"full"}` and may try `hello` again later on the same socket.
- * - A `pid` that matches a remembered, disconnected player resumes it with the same score and color.
- *   If the same phone reconnects before its old socket timed out (same pid and same name), the new
- *   socket takes the seat over and the old one is closed.
+ * - A `pid` plus the same name (or no name) that matches a remembered, disconnected player resumes
+ *   it with the same score and color. Pids restart at p1 with every TV session, so a pid with another
+ *   name is stale and that phone joins as someone new. If the same phone reconnects before its old
+ *   socket timed out (same pid and same name), the new socket takes the seat over and the old one is
+ *   closed with code 4000.
  * - Taken colors fall back to the first free one; names are trimmed to 16 chars, empty means the
  *   color name.
  * - After `welcome` the newcomer gets `players` (sent to everyone) and then the latest `state`.
@@ -219,20 +221,22 @@ class PhoneHub(
 
             var seat = bySocket[clientId]
             if (seat == null && hello.pid != null) {
+                // Pids are only unique per TV session ("p1", "p2"... restart with the app), so a pid
+                // alone proves nothing: a phone remembering "p1" from an earlier session must not get
+                // whoever holds "p1" now. Only the same name (or no name) claims a remembered seat.
+                // Phones send their pid only together with the name they were welcomed with.
                 val remembered = seats.firstOrNull { it.player.id == hello.pid }
+                    ?.takeIf { requestedName.isEmpty() || requestedName.equals(it.player.name, ignoreCase = true) }
                 if (remembered != null && remembered.clientId >= 0) {
-                    // Same pid on a live seat: only the same phone (same name) may take it over, e.g.
-                    // after a Wi-Fi blip that the old socket has not noticed yet. A different name
-                    // means a stale pid from an earlier session, so that phone joins as someone new.
-                    if (requestedName.isEmpty() || requestedName.equals(remembered.player.name, ignoreCase = true)) {
-                        val old = remembered.clientId
-                        bySocket.remove(old)
-                        srv.close(old, 4000, "Replaced by a newer connection")
-                        remembered.clientId = clientId
-                        bySocket[clientId] = remembered
-                        seat = remembered
-                        log("${remembered.player.name} moved to a new connection")
-                    }
+                    // Same pid and name on a live seat: the same phone taking it over, e.g. after a
+                    // Wi-Fi blip that the old socket has not noticed yet.
+                    val old = remembered.clientId
+                    bySocket.remove(old)
+                    srv.close(old, 4000, "Replaced by a newer connection")
+                    remembered.clientId = clientId
+                    bySocket[clientId] = remembered
+                    seat = remembered
+                    log("${remembered.player.name} moved to a new connection")
                 } else if (remembered != null) {
                     if (connectedCountLocked() >= PhoneProtocol.MAX_PLAYERS) {
                         rejectFull(srv, clientId)

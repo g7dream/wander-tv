@@ -28,7 +28,8 @@ import kotlin.system.exitProcess
  *   tools/gw.sh :couchlink:runPhoneHarness -Pport=8090
  *
  * Extras for development: `/harness` is a protocol console (join, press every button, watch the
- * traffic), and `GET /harness/tv/<mode>` switches the simulated TV to any mode from outside.
+ * traffic), `GET /harness/tv/<mode>` switches the simulated TV to any mode from outside, and
+ * `GET /harness/couch` has the TV remote ("The couch") find the next quest item.
  */
 fun main(args: Array<String>) {
     // Log in UTF-8 so quest emoji and curly quotes survive Windows consoles and redirected output.
@@ -56,6 +57,7 @@ fun main(args: Array<String>) {
 }
 
 private const val MAX_PLAYERS = 4
+private const val COUCH_PID = "couch"
 private val COLOR_NAMES = arrayOf("Sun", "Berry", "Mint", "Sky")
 private val KEYS = setOf("back", "home", "menu", "up", "down", "left", "right", "enter", "playpause")
 private val MODES = setOf("home", "browse", "cards", "quest_picker", "quest_intro", "rescue", "companion")
@@ -182,6 +184,7 @@ private class SimulatedTv(private val assetsDir: File, private val port: Int) : 
     private val found = ArrayList<Found>()
     private var complete = false
     private var acceptNext = true
+    private var couchScore = 0 // the TV remote plays as "The couch" (pid "couch"), like MainActivity
 
     fun start() {
         server.start()
@@ -304,8 +307,9 @@ private class SimulatedTv(private val assetsDir: File, private val port: Int) : 
 
         var seat = bySocket[clientId]
         if (seat == null && pid != null) {
-            val known = seats.firstOrNull { it.pid == pid }
-            if (known != null && known.clientId >= 0 && (name.isEmpty() || name.equals(known.name, ignoreCase = true))) {
+            // Like PhoneHub: a pid only claims a seat together with the same name (pids restart every session).
+            val known = seats.firstOrNull { it.pid == pid }?.takeIf { name.isEmpty() || name.equals(it.name, ignoreCase = true) }
+            if (known != null && known.clientId >= 0) {
                 // Same phone on a new socket: take the seat over and retire the stale socket.
                 bySocket.remove(known.clientId)
                 server.close(known.clientId, 4000, "Replaced by a newer connection")
@@ -415,6 +419,7 @@ private class SimulatedTv(private val assetsDir: File, private val port: Int) : 
         complete = false
         checking = false
         acceptNext = true
+        couchScore = 0
         setMode("quest_intro")
         publish()
         toAll(JSONObject().put("t", "toast").put("text", "${seat.name} started ${q.title} ${q.emoji}").put("kind", "info"))
@@ -511,6 +516,25 @@ private class SimulatedTv(private val assetsDir: File, private val port: Int) : 
         }
     }
 
+    /** Called from GET /harness/couch: the TV remote ("The couch") submits a page and it is accepted. */
+    fun couchFind() {
+        tv.execute {
+            guarded {
+                val q = quest ?: return@guarded println("[tv] ignored: no quest running")
+                if (complete) return@guarded println("[tv] ignored: ${q.title} is already complete")
+                val next = q.answers.firstOrNull { a -> found.none { it.item == a.item } } ?: return@guarded
+                found.add(Found(next.item, COUCH_PID, next.evidence))
+                couchScore += 100
+                if (found.size >= q.goal) {
+                    complete = true
+                    couchScore += 50
+                }
+                publish()
+                toAll(JSONObject().put("t", "toast").put("text", "The couch found ${next.item}!").put("kind", "good"))
+            }
+        }
+    }
+
     // ---------------------------------------------------------------- outgoing
 
     private fun setMode(next: String) {
@@ -540,6 +564,7 @@ private class SimulatedTv(private val assetsDir: File, private val port: Int) : 
                 if (q == null) JSONObject.NULL else JSONObject()
                     .put("id", q.id).put("title", q.title).put("prompt", q.prompt).put("emoji", q.emoji).put("goal", q.goal)
                     .put("found", JSONArray().also { arr -> found.forEach { arr.put(JSONObject().put("item", it.item).put("pid", it.pid).put("evidence", it.evidence)) } })
+                    .put("players", boardPlayers())
                     .put("complete", complete),
             )
             .put(
@@ -550,8 +575,8 @@ private class SimulatedTv(private val assetsDir: File, private val port: Int) : 
                     .put(
                         "options",
                         JSONArray()
-                            .put(JSONObject().put("label", "Take a detour").put("detail", "How moths find their way by moonlight"))
-                            .put(JSONObject().put("label", "Wind down").put("detail", "Lights low, back to Home")),
+                            .put(JSONObject().put("label", "Take a detour").put("detail", "How moths find their way by moonlight").put("kind", "detour"))
+                            .put(JSONObject().put("label", "Wind down").put("detail", "Lights low, back to Home").put("kind", "wind_down")),
                     )
                 else JSONObject.NULL,
             )
@@ -559,6 +584,20 @@ private class SimulatedTv(private val assetsDir: File, private val port: Int) : 
     }
 
     private fun publish() = toAll(stateJson())
+
+    /** The scoreboard as the TV builds it: connected phones, plus "The couch" once the remote has points. */
+    private fun boardPlayers(): JSONArray {
+        val list = JSONArray()
+        for (s in seats) {
+            if (s.clientId >= 0) list.put(JSONObject().put("pid", s.pid).put("name", s.name).put("color", s.color).put("score", s.score))
+        }
+        if (couchScore > 0) {
+            val used = seats.filter { it.clientId >= 0 }.map { it.color }.toSet()
+            val color = (0 until MAX_PLAYERS).firstOrNull { it !in used } ?: 0
+            list.put(JSONObject().put("pid", COUCH_PID).put("name", "The couch").put("color", color).put("score", couchScore))
+        }
+        return list
+    }
 
     private fun broadcastPlayers() {
         val list = JSONArray()
@@ -608,6 +647,10 @@ private class SimulatedTv(private val assetsDir: File, private val port: Int) : 
 
         override fun open(path: String): ByteArray? {
             if (path == "/harness") return CONSOLE_HTML.toByteArray(Charsets.UTF_8)
+            if (path == "/harness/couch") {
+                couchFind()
+                return "<!doctype html><p>The remote submitted a page</p>".toByteArray(Charsets.UTF_8)
+            }
             if (path.startsWith("/harness/tv/")) {
                 val target = path.removePrefix("/harness/tv/")
                 if (target !in MODES) return null

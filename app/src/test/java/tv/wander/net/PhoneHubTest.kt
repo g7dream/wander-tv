@@ -268,6 +268,33 @@ class PhoneHubTest {
         assertEquals(2, hub.players.size)
     }
 
+    @Test
+    fun stalePidCannotResumeSomeoneElsesDisconnectedSeat() {
+        // After a TV restart pids start at p1 again: Ann rejoined first and got p1, then blipped. Ben's
+        // phone still remembers "p1" from the earlier session and must not inherit Ann's seat and score.
+        val hub = started()
+        val ann = phone()
+        val annPid = join(ann, "Ann", 2).getString("pid")
+        hub.player(annPid)!!.score = 300
+        ann.close()
+        assertEquals("left $annPid", event())
+
+        val ben = phone()
+        val w = join(ben, "Ben", 1, pid = annPid)
+        assertNotEquals(annPid, w.getString("pid"))
+        assertEquals("Ben", w.getString("name"))
+        assertEquals(1, w.getInt("color"))
+        assertEquals(0, hub.player(w.getString("pid"))!!.score)
+
+        // Ann comes back with her pid and name: same seat, same score.
+        val annAgain = phone()
+        annAgain.hello("Ann", 2, annPid)
+        val back = annAgain.expectWelcomeSequence()
+        assertEquals(annPid, back.getString("pid"))
+        assertEquals(300, hub.player(annPid)!!.score)
+        assertEquals("Ann", hub.player(annPid)!!.name)
+    }
+
     // ------------------------------------------------------------------ commands
 
     @Test
@@ -425,7 +452,7 @@ class PhoneHubTest {
         assertEquals("Built for speed", cards.getString("title"))
 
         val q = o.getJSONObject("quest")
-        assertEquals(setOf("id", "title", "prompt", "emoji", "goal", "found", "complete"), q.keyNames())
+        assertEquals(setOf("id", "title", "prompt", "emoji", "goal", "found", "players", "complete"), q.keyNames())
         assertEquals("speed-safari", q.getString("id"))
         assertEquals("🐆", q.getString("emoji"))
         assertEquals(3, q.getInt("goal"))
@@ -434,13 +461,37 @@ class PhoneHubTest {
         assertEquals(setOf("item", "pid", "evidence"), found.keyNames())
         assertEquals("Cheetah", found.getString("item"))
         assertEquals("p3", found.getString("pid"))
+        // The board's players (the remote's "couch" player included) ride along for names and colors.
+        val boardPlayers = q.getJSONArray("players")
+        assertEquals(1, boardPlayers.length())
+        val bp = boardPlayers.getJSONObject(0)
+        assertEquals(setOf("pid", "name", "color", "score"), bp.keyNames())
+        assertEquals("p3", bp.getString("pid"))
+        assertEquals("Maya", bp.getString("name"))
+        assertEquals(1, bp.getInt("color"))
+        assertEquals(200, bp.getInt("score"))
+        val couch = Player("couch", "The couch", 2, score = 100)
+        val withCouch = JSONObject(PhoneProtocol.state(state.copy(quest = state.quest!!.copy(players = listOf(maya, couch)))))
+            .getJSONObject("quest").getJSONArray("players")
+        assertEquals("couch", withCouch.getJSONObject(1).getString("pid"))
+        assertEquals("The couch", withCouch.getJSONObject(1).getString("name"))
+        assertEquals(2, withCouch.getJSONObject(1).getInt("color"))
+        assertEquals(100, withCouch.getJSONObject(1).getInt("score"))
 
         val rescue = o.getJSONObject("rescue")
         assertEquals(setOf("headline", "detail", "options"), rescue.keyNames())
         val options = rescue.getJSONArray("options")
         assertEquals(2, options.length())
-        assertEquals(setOf("label", "detail"), options.getJSONObject(0).keyNames())
+        assertEquals(setOf("label", "detail", "kind"), options.getJSONObject(0).keyNames())
         assertEquals("Start Speed Safari", options.getJSONObject(0).getString("label"))
+        assertEquals("quest", options.getJSONObject(0).getString("kind"))
+        assertEquals("detour", options.getJSONObject(1).getString("kind"))
+        val windDown = RescueOption(RescueOption.Kind.WIND_DOWN, "Wind down", "Lights low")
+        assertEquals(
+            "wind_down",
+            JSONObject(PhoneProtocol.state(state.copy(rescueOptions = listOf(windDown)))).getJSONObject("rescue")
+                .getJSONArray("options").getJSONObject(0).getString("kind"),
+        )
 
         val quests = o.getJSONArray("quests")
         assertEquals(setOf("id", "title", "emoji", "prompt"), quests.getJSONObject(0).keyNames())
