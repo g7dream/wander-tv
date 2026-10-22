@@ -179,8 +179,11 @@ function Measure-TextWidth([string]$text, [double]$px) {
 # A rounded "pill" with a colored dot and cream text, faded in/out between $from and $to.
 # Appends graph statements to $lines and returns the new video label.
 $script:PillN = 0
+# $fadeIn / $fadeOut: $false where the same pill continues in the neighbouring segment (a badge across a cut).
+# $xAt / $yAt: explicit top-left corner in output pixels, $cxAt: explicit horizontal center (-1 = use $anchor).
 function Add-Pill($lines, [string]$inLabel, [string]$text, [double]$fontPx, [int]$ph, [string]$anchor,
-                  [int[]]$dot, [double]$from, [double]$to, [int]$frames, [double]$fps, [string]$tmp) {
+                  [int[]]$dot, [double]$from, [double]$to, [int]$frames, [double]$fps, [string]$tmp,
+                  [bool]$fadeIn = $true, [bool]$fadeOut = $true, [int]$xAt = -1, [int]$yAt = -1, [int]$cxAt = -1) {
     $script:PillN++
     $n = $script:PillN
     $textW = Measure-TextWidth $text $fontPx
@@ -194,19 +197,32 @@ function Add-Pill($lines, [string]$inLabel, [string]$text, [double]$fontPx, [int
         $pw = $W - 120
     }
     switch ($anchor) {
-        "top-left"  { $x = 64; $y = 54 }
-        "top-right" { $x = $W - 64 - $pw; $y = 54 }
-        default     { $x = [int](($W - $pw) / 2); $y = $H - 80 - $ph }
+        "top-left"     { $x = 64; $y = 54 }
+        "top-right"    { $x = $W - 64 - $pw; $y = 54 }
+        "top"          { $x = [int](($W - $pw) / 2); $y = 54 }
+        "bottom-left"  { $x = 64; $y = $H - 80 - $ph }
+        "bottom-right" { $x = $W - 64 - $pw; $y = $H - 80 - $ph }
+        default        { $x = [int](($W - $pw) / 2); $y = $H - 80 - $ph }
     }
+    if ($cxAt -ge 0) { $x = [math]::Max(0, [math]::Min([int]($cxAt - $pw / 2), $W - $pw)) }
+    if ($xAt -ge 0) { $x = [math]::Min($xAt, $W - $pw) }
+    if ($yAt -ge 0) { $y = [math]::Min($yAt, $H - $ph) }
     $fade = [math]::Min(0.25, ($to - $from) / 3)
+    $fi = if ($fadeIn) { $fade } else { 0.0 }
+    $fo = if ($fadeOut) { $fade } else { 0.0 }
+    $pillFades = ""
+    if ($fi -gt 0) { $pillFades += ",fade=t=in:st=$(N $from):d=$(N $fi):alpha=1" }
+    if ($fo -gt 0) { $pillFades += ",fade=t=out:st=$(N ($to - $fo)):d=$(N $fo):alpha=1" }
     $dr = $dot[0]; $dg = $dot[1]; $db = $dot[2]
     $sr = N $r; $sr5 = N ($r + 0.5); $scx = N $dotCx; $sdr5 = N ($dotR + 0.5)
     $mix = "clip($sdr5-hypot(X-$scx,Y-$sr),0,1)"
-    $geq = "geq=r='27+($dr-27)*$mix':g='21+($dg-21)*$mix':b='41+($db-41)*$mix':a='235*clip($sr5-hypot(X-clip(X,$sr,W-$sr),Y-$sr),0,1)'"
-    [void]$lines.Add("color=c=black@0.0:s=${pw}x${ph}:r=$(N $fps):d=$(N (1.0 / $fps)),format=rgba,$geq,loop=loop=$($frames - 1):size=1:start=0,setpts=N/$(N $fps)/TB,fade=t=in:st=$(N $from):d=$(N $fade):alpha=1,fade=t=out:st=$(N ($to - $fade)):d=$(N $fade):alpha=1[pill$n]")
+    $geq = "geq=r='27+($dr-27)*$mix':g='21+($dg-21)*$mix':b='41+($db-41)*$mix':a='250*clip($sr5-hypot(X-clip(X,$sr,W-$sr),Y-$sr),0,1)'"
+    [void]$lines.Add("color=c=black@0.0:s=${pw}x${ph}:r=$(N $fps):d=$(N (1.0 / $fps)),format=rgba,$geq,loop=loop=$($frames - 1):size=1:start=0,setpts=N/$(N $fps)/TB$pillFades[pill$n]")
     $txt = Join-Path $tmp ("pill$n.txt")
     Write-TextFile $txt $text
-    $alpha = "if(lt(t,$(N $from)),0,if(lt(t,$(N ($from + $fade))),(t-$(N $from))/$(N $fade),if(lt(t,$(N ($to - $fade))),1,if(lt(t,$(N $to)),($(N $to)-t)/$(N $fade),0))))"
+    $aIn = if ($fi -gt 0) { "(t-$(N $from))/$(N $fi)" } else { "1" }
+    $aOut = if ($fo -gt 0) { "($(N $to)-t)/$(N $fo)" } else { "1" }
+    $alpha = "clip(min($aIn,$aOut),0,1)"
     $font = Escape-FilterPath $script:FontPath
     $tf = Escape-FilterPath $txt
     $en = "between(t,$(N $from),$(N $to))"
@@ -412,7 +428,12 @@ try {
                 if ($AllowMissing) { Add-Warning "VO $id missing, skipped ($path)"; continue }
                 [void]$missing.Add("vo     $path"); continue
             }
-            [void]$placements.Add([ordered]@{ Kind = "vo"; Id = $id; Path = $path; At = $seg.Start + [double](Get-Prop $v "at" 0); Volume = [double](Get-Prop $v "volume" 1.0); Scene = $seg })
+            # optional "in"/"out": play only that part of the take (seconds in the audio file), with "text" as its subtitle
+            $vIn = [double](Get-Prop $v "in" 0)
+            $vOut = Get-Prop $v "out" $null
+            $vText = Get-Prop $v "text" $null
+            if (($vIn -gt 0 -or $null -ne $vOut) -and -not $vText) { Add-Warning "VO $id is trimmed but has no 'text': its subtitle will show the whole line" }
+            [void]$placements.Add([ordered]@{ Kind = "vo"; Id = $id; Path = $path; At = $seg.Start + [double](Get-Prop $v "at" 0); Volume = [double](Get-Prop $v "volume" 1.0); Scene = $seg; In = $vIn; Out = $vOut; Text = $vText })
         }
         foreach ($x in @(Get-Prop $seg.Def "sfx" @())) {
             $f = [string](Get-Prop $x "file" "")
@@ -421,7 +442,7 @@ try {
                 if ([bool](Get-Prop $x "optional" $false) -or $AllowMissing) { Add-Warning "sound $f missing, skipped"; continue }
                 [void]$missing.Add("sound  $path"); continue
             }
-            [void]$placements.Add([ordered]@{ Kind = "sfx"; Id = [System.IO.Path]::GetFileNameWithoutExtension($path); Path = $path; At = $seg.Start + [double](Get-Prop $x "at" 0); Volume = [double](Get-Prop $x "volume" 1.0); Scene = $seg })
+            [void]$placements.Add([ordered]@{ Kind = "sfx"; Id = [System.IO.Path]::GetFileNameWithoutExtension($path); Path = $path; At = $seg.Start + [double](Get-Prop $x "at" 0); Volume = [double](Get-Prop $x "volume" 1.0); Scene = $seg; In = 0.0; Out = $null; Text = $null })
         }
     }
 
@@ -429,7 +450,16 @@ try {
         throw ("Missing files (record them, or run with -AllowMissing for a rough cut):`n  " + ($missing -join "`n  "))
     }
 
-    foreach ($p in $placements) { $p.Duration = (Get-Media $p.Path).Duration }
+    foreach ($p in $placements) {
+        $full = (Get-Media $p.Path).Duration
+        $end = $full
+        if ($null -ne $p.Out) { $end = [math]::Min([double]$p.Out, $full) }
+        if ($end -le $p.In + 0.05) { throw ("{0} {1}: 'in' ({2}) must be before 'out' and before the end of the file ({3} s)" -f $p.Kind, $p.Id, (N $p.In), (N $full)) }
+        $p.Trimmed = ($p.In -gt 0 -or $end -lt $full - 0.001)
+        $p.End = $end
+        $p.Duration = $end - $p.In
+        if ($p.Trimmed) { $p.Label = "{0}[{1}-{2}]" -f $p.Id, (N $p.In), (N $end) } else { $p.Label = $p.Id }
+    }
 
     # ---- report
     Write-Host ""
@@ -440,7 +470,7 @@ try {
         if ($seg.Speed -ne 1) { $src = "$src  ({0}x)" -f (N $seg.Speed) }
         Write-Host ("  {0,-8} {1,-8} {2,-8} {3,-7} {4}" -f $seg.Id, (Format-Clock $seg.Start), (Format-Clock ($seg.Start + $seg.Seconds)), (N ([math]::Round($seg.Seconds, 2))), $src)
         foreach ($p in ($placements | Where-Object { [object]::ReferenceEquals($_.Scene, $seg) })) {
-            Write-Host ("      {0,-5} {1,-6} {2} - {3}" -f $p.Kind, $p.Id, (Format-Clock $p.At), (Format-Clock ($p.At + $p.Duration))) -ForegroundColor DarkGray
+            Write-Host ("      {0,-5} {1,-14} {2} - {3}" -f $p.Kind, $p.Label, (Format-Clock $p.At), (Format-Clock ($p.At + $p.Duration))) -ForegroundColor DarkGray
         }
     }
     Write-Host ("  TOTAL    {0}  (limit {1})" -f (Format-Clock $total), (Format-Clock $limit)) -ForegroundColor Cyan
@@ -452,15 +482,15 @@ try {
     $vos = @($placements | Where-Object { $_.Kind -eq "vo" } | Sort-Object { $_.At })
     for ($i = 0; $i -lt $vos.Count; $i++) {
         $p = $vos[$i]
-        if ($p.At -lt 0) { throw "VO $($p.Id) starts before 0:00" }
-        if ($p.At + $p.Duration -gt $total + 0.01) { throw ("VO {0} ends at {1}, after the video ends ({2}). Move it earlier or lengthen the last scene." -f $p.Id, (Format-Clock ($p.At + $p.Duration)), (Format-Clock $total)) }
+        if ($p.At -lt 0) { throw "VO $($p.Label) starts before 0:00" }
+        if ($p.At + $p.Duration -gt $total + 0.01) { throw ("VO {0} ends at {1}, after the video ends ({2}). Move it earlier or lengthen the last scene." -f $p.Label, (Format-Clock ($p.At + $p.Duration)), (Format-Clock $total)) }
         if ($i + 1 -lt $vos.Count) {
             $q = $vos[$i + 1]
             $overlap = $p.At + $p.Duration - $q.At
-            if ($overlap -gt 0.05) { Add-Warning ("VO {0} overlaps {1} by {2} s: move {1} later or trim {0}" -f $p.Id, $q.Id, (N ([math]::Round($overlap, 2)))) }
+            if ($overlap -gt 0.05) { Add-Warning ("VO {0} overlaps {1} by {2} s: move {1} later or trim {0}" -f $p.Label, $q.Label, (N ([math]::Round($overlap, 2)))) }
         }
         $sceneEnd = $p.Scene.Start + $p.Scene.Seconds
-        if ($p.Scene.Card -ne "title" -and $p.At + $p.Duration -gt $sceneEnd + 1.0) { Add-Warning ("VO {0} runs {1} s past the end of scene {2}" -f $p.Id, (N ([math]::Round($p.At + $p.Duration - $sceneEnd, 2))), $p.Scene.Id) }
+        if ($p.Scene.Card -ne "title" -and $p.At + $p.Duration -gt $sceneEnd + 1.0) { Add-Warning ("VO {0} runs {1} s past the end of scene {2}" -f $p.Label, (N ([math]::Round($p.At + $p.Duration - $sceneEnd, 2))), $p.Scene.Id) }
     }
 
     if ($PlanOnly) { Write-Host "`nPlan only: nothing encoded." -ForegroundColor Cyan; return }
@@ -539,18 +569,34 @@ try {
         }
 
         # badges and captions
+        # A badge stays on screen across a cut when the neighbouring segment carries the same badge, so a scene
+        # cut into several EDL entries does not make it blink; it only fades where it starts or ends.
         $badge = Get-Prop $d "badge" $null
-        if ($badge) { $label = Add-Pill $g $label ([string]$badge) 28 56 "top-left" @(61, 220, 151) 0.3 ($dur - 0.3) $frames $fps $tmp }
-        if ($seg.Speed -ne 1 -and $seg.Kind -ne "image") {
-            $label = Add-Pill $g $label ("{0}x speed" -f (N $seg.Speed)) 28 56 "top-right" @(90, 180, 255) 0.2 ($dur - 0.2) $frames $fps $tmp
+        if ($badge) {
+            $prevBadge = $null; $nextBadge = $null
+            if ($idx -ge 2) { $prevBadge = Get-Prop $segs[$idx - 2].Def "badge" $null }
+            if ($idx -lt $segs.Count) { $nextBadge = Get-Prop $segs[$idx].Def "badge" $null }
+            $joinPrev = ([string]$prevBadge -eq [string]$badge); $joinNext = ([string]$nextBadge -eq [string]$badge)
+            $bFrom = if ($joinPrev) { 0.0 } else { 0.3 }
+            $bTo = if ($joinNext) { $dur } else { $dur - 0.3 }
+            $label = Add-Pill $g $label ([string]$badge) 28 56 ([string](Get-Prop $d "badge_anchor" "top-left")) @(61, 220, 151) $bFrom $bTo $frames $fps $tmp (-not $joinPrev) (-not $joinNext) ([int](Get-Prop $d "badge_x" -1)) ([int](Get-Prop $d "badge_y" -1))
         }
+        if ($seg.Speed -ne 1 -and $seg.Kind -ne "image") {
+            # the speed pill sits top-right, on the badge's line when the scene moves the badge ("badge_y")
+            $label = Add-Pill $g $label ("{0}x speed" -f (N $seg.Speed)) 28 56 "top-right" @(90, 180, 255) 0.2 ($dur - 0.2) $frames $fps $tmp $true $true -1 ([int](Get-Prop $d "badge_y" -1))
+        }
+        # captions: "anchor" (bottom | top | top-left | top-right | bottom-left | bottom-right), "size" (font px,
+        # default 46; the pill height scales with it), "x" / "y" (explicit top-left corner, output px), "cx"
+        # (explicit horizontal center, e.g. under the TV of a side-by-side clip)
         foreach ($c in @(Get-Prop $d "captions" @())) {
             $text = ([string](Get-Prop $c "text" "")).Trim()
             if (-not $text) { continue }
             $from = [math]::Max(0.0, [double](Get-Prop $c "from" 0.4))
             $to = [math]::Min($dur, [double](Get-Prop $c "to" ($dur - 0.3)))
             if ($to -le $from + 0.3) { Add-Warning "caption '$text' in $($seg.Id) is too short or outside the scene, skipped"; continue }
-            $label = Add-Pill $g $label $text 46 88 "bottom" @(255, 181, 71) $from $to $frames $fps $tmp
+            $cSize = [double](Get-Prop $c "size" 46)
+            $cPh = [int][math]::Round($cSize * 88 / 46)
+            $label = Add-Pill $g $label $text $cSize $cPh ([string](Get-Prop $c "anchor" "bottom")) @(255, 181, 71) $from $to $frames $fps $tmp $true $true ([int](Get-Prop $c "x" -1)) ([int](Get-Prop $c "y" -1)) ([int](Get-Prop $c "cx" -1))
         }
         [void]$g.Add("[$label]null[vout]")
 
@@ -594,7 +640,12 @@ try {
         $p = $mixInputs[$j]
         $inIdx = $segFiles.Count + $j
         $ms = [int][math]::Round($p.At * 1000)
-        [void]$g.Add("[${inIdx}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=$(N $p.Volume),adelay=delays=${ms}:all=1[m$j]")
+        $trim = ""
+        if ($p.Trimmed) {
+            # a part of a take: cut it out, with 20 ms fades so the cut points never click
+            $trim = "atrim=start=$(N $p.In):end=$(N $p.End),asetpts=PTS-STARTPTS,afade=t=in:d=0.02,afade=t=out:st=$(N ([math]::Max(0, $p.Duration - 0.02))):d=0.02,"
+        }
+        [void]$g.Add("[${inIdx}:a]${trim}aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=$(N $p.Volume),adelay=delays=${ms}:all=1[m$j]")
         $mixLabels += "[m$j]"
     }
     # VO + sounds go on their own bus, which is loudness-normalized; the clip bed stays at clip_volume.
@@ -629,7 +680,7 @@ try {
     $srt = New-Object System.Text.StringBuilder
     $n = 0
     foreach ($p in $vos) {
-        $text = Get-VoText $p.Id
+        $text = if ($p.Text) { [string]$p.Text } else { Get-VoText $p.Id }
         if (-not $text) { continue }
         $chunks = Split-Subtitle $text
         $totalChars = 0

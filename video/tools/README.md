@@ -18,6 +18,7 @@ node video/tools/record.mjs s06-drift                        # TV only, demo mod
 node video/tools/composite.mjs s03-join                      # side-by-side clip, also s04-cards, s05-quest
 node video/tools/sheet.mjs video/raw/s03-join-comp.mp4       # contact sheet, one frame every 2 s
 node video/tools/logo-blur.mjs s05-quest                     # EDL blur boxes for the site's logos
+node video/tools/emulator-edl.mjs                            # video/edl.json for the emulator cut
 ```
 
 Set `CAPTURE_TMP` to a scratch folder for the Chrome profiles (default: the OS temp folder).
@@ -31,6 +32,7 @@ Set `CAPTURE_TMP` to a scratch folder for the Chrome profiles (default: the OS t
 | `composite.mjs` | 1920x1080 / 30 fps side by side: lamp-lit background, TV 1440x810 with a hairline border, phone 372x826 with rounded corners, labels in Atkinson Hyperlegible Bold. Writes `<scene>-comp.mp4` and `<scene>-comp.times.txt` (every logged action in clip seconds). `--tv-shift` / `--phone-shift` nudge the sync. |
 | `sheet.mjs` | Contact sheet with time stamps, for checking a take by eye. |
 | `logo-blur.mjs` | Finds when the Wikipedia wordmark (page header) and the site favicon (Wander's title strip) are on screen and writes `<scene>.blur.json` with EDL blur boxes for the plain TV clip and for the composite. |
+| `emulator-edl.mjs` | Writes `video/edl.json` for the emulator cut: the cut points of every scene (s03-s06 are each cut into several entries), VO placements set from the capture timestamps, captions placed off the app's own UI, and the `<scene>.blur.json` windows moved into each entry's time. Re-run it after re-recording a scene and updating its cut points. |
 
 ## How the pieces line up
 

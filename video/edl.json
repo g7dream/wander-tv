@@ -1,82 +1,648 @@
 {
-  "_comment": "Edit list for video/make_video.ps1. Times are seconds. Clip 'file' names resolve in video/raw/, VO ids resolve to video/vo/<id>.mp3, other relative paths resolve from the repo root. Scene 'in'/'out' are source times; 'at'/'from'/'to' are relative to the start of that scene in the final cut (after 'speed'). See video/SCRIPT.md.",
+  "_comment": "Edit list for video/make_video.ps1, emulator cut. Times are seconds. Clip 'file' names resolve in video/raw/, VO ids resolve to video/vo/<id>.mp3, other relative paths resolve from the repo root. Scene 'in'/'out' are source times; 'at'/'from'/'to' are relative to the start of that scene in the final cut (after 'speed'); a negative VO 'at' starts the line in the previous segment. A VO entry with 'in'/'out' plays only that part of the take, with 'text' as its subtitle. Scenes split into several entries (s03, s04, s05, s06) are one take cut down; *-comp clips are the TV and Maya's phone side by side (video/tools/composite.mjs). Blur boxes hide the Wikipedia wordmark and favicon (windows from video/raw/<scene>.blur.json). See video/SCRIPT.md.",
   "fps": 30,
   "clip_volume": 0.25,
   "max_seconds": 178,
   "font": "app/src/main/assets/fonts/AtkinsonHyperlegible-Bold.ttf",
   "lines": "video/vo/lines.json",
-
   "title_card": {
-    "image": "docs/title-card.png", "seconds": 3,
-    "vo": [ { "id": "s01", "at": 0.5 } ]
+    "image": "docs/title-card.png",
+    "seconds": 3,
+    "vo": [
+      {
+        "id": "s01",
+        "at": 0.5
+      }
+    ]
   },
-
   "scenes": [
     {
-      "id": "s01", "file": "s01-home.mp4", "in": 0, "out": 7,
-      "badge": "Recorded on a real Fire TV",
-      "captions": [ { "text": "Meet Lumo", "from": 0.6, "to": 6.4 } ]
-    },
-    {
-      "id": "s02", "file": "s02-remote.mp4", "in": 0, "out": 15.2,
-      "vo": [ { "id": "s02", "at": 0.3 } ],
-      "captions": [ { "text": "Typing with a remote: one letter at a time", "from": 1.0, "to": 14.4 } ]
-    },
-    {
-      "id": "s03", "file": "s03-join.mp4", "in": 0, "out": 24.8,
-      "vo": [ { "id": "s03", "at": 0.4 } ],
+      "id": "s01",
+      "file": "s01-home.mp4",
+      "in": 0,
+      "out": 7,
+      "badge": "Android TV emulator · Fire OS APK",
+      "badge_y": 8,
       "captions": [
-        { "text": "Scan the QR: your phone is the keyboard", "from": 1.0, "to": 11.5 },
-        { "text": "Up to 4 phones, no app to install", "from": 12.5, "to": 24.0 }
+        {
+          "text": "Meet Lumo",
+          "from": 0.6,
+          "to": 6.6,
+          "cx": 1640,
+          "y": 618
+        }
       ]
     },
     {
-      "id": "s04", "file": "s04-cards.mp4", "in": 0, "out": 26,
-      "vo": [ { "id": "s04", "at": 0.5 } ],
-      "sfx": [ { "file": "video/sfx/polly-card.mp3", "at": 17.0, "volume": 1.0, "optional": true } ],
-      "captions": [
-        { "text": "Make it cards: a long page becomes big cards", "from": 1.0, "to": 14.5 },
-        { "text": "Read aloud with Amazon Polly", "from": 16.5, "to": 25.2 }
+      "id": "s02",
+      "file": "s02-remote.mp4",
+      "in": 1,
+      "out": 16.2,
+      "badge": "Android TV emulator · Fire OS APK",
+      "badge_y": 8,
+      "vo": [
+        {
+          "id": "s02",
+          "at": 0.3
+        }
       ],
-      "blur": []
-    },
-    {
-      "id": "s05a", "file": "s05-quest.mp4", "in": 0, "out": 20,
-      "vo": [ { "id": "s05a", "at": 0.4 }, { "id": "s05b", "at": 9.6 } ],
       "captions": [
-        { "text": "Family quest: Speed Safari", "from": 0.8, "to": 9.4 },
-        { "text": "Checked on AWS, with proof from the page", "from": 10.4, "to": 19.6 }
+        {
+          "text": "Typing with a remote: one letter at a time",
+          "from": 1,
+          "to": 14.8,
+          "size": 40,
+          "x": 104,
+          "y": 244
+        }
       ]
     },
     {
-      "id": "s05b", "file": "s05-quest.mp4", "in": 40, "out": 64,
-      "vo": [ { "id": "s05c", "at": 6.0 }, { "id": "s05d", "at": 16.0 } ],
+      "id": "s03a",
+      "file": "s03-join-comp.mp4",
+      "in": 3,
+      "out": 21.9,
+      "badge": "Android TV emulator · Fire OS APK",
+      "vo": [
+        {
+          "id": "s03",
+          "at": 1.94,
+          "in": 0,
+          "out": 13.3,
+          "text": "So we fixed it. Scan the code, and your phone becomes a keyboard and a touchpad. No app to install. Everyone gets a color, and the cursor wears the color of whoever moved it last. Maya types."
+        }
+      ],
       "captions": [
-        { "text": "Not quite? Lumo says why", "from": 5.6, "to": 11.5 },
-        { "text": "+100 per find, +50 to finish", "from": 15.5, "to": 23.4 }
+        {
+          "text": "Scan the QR: your phone is the keyboard",
+          "from": 1.2,
+          "to": 7.4,
+          "cx": 752,
+          "y": 930
+        },
+        {
+          "text": "Up to 4 phones, no app to install",
+          "from": 7.8,
+          "to": 14.6,
+          "cx": 752,
+          "y": 930
+        }
+      ],
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 17.45,
+          "to": 18.9
+        },
+        {
+          "x": 120,
+          "y": 170,
+          "w": 57,
+          "h": 54,
+          "from": 17.45,
+          "to": 18.9
+        }
       ]
     },
     {
-      "id": "s06a", "file": "s06-drift.mp4", "in": 0, "out": 20, "speed": 2.0,
-      "vo": [ { "id": "s06a", "at": 0.4 } ],
-      "captions": [ { "text": "Lumo notices drift from timing alone, on the TV", "from": 0.6, "to": 9.6 } ]
-    },
-    {
-      "id": "s06b", "file": "s06-drift.mp4", "in": 20, "out": 37,
-      "vo": [ { "id": "s06b", "at": 0.3 }, { "id": "s06c", "at": 8.4 } ],
-      "captions": [
-        { "text": "A quest, or a curious detour", "from": 0.8, "to": 7.2 },
-        { "text": "Each \"we're fine\" = more patience next time", "from": 8.6, "to": 16.4 }
+      "id": "s03b",
+      "file": "s03-join-comp.mp4",
+      "in": 24.75,
+      "out": 26.2,
+      "badge": "Android TV emulator · Fire OS APK",
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 1.45
+        },
+        {
+          "x": 120,
+          "y": 170,
+          "w": 57,
+          "h": 54,
+          "from": 0,
+          "to": 1.4
+        }
       ]
     },
     {
-      "id": "s07", "image": "docs/architecture.png", "seconds": 20, "kenburns": true,
-      "vo": [ { "id": "s07", "at": 0.3 } ]
+      "id": "s03c",
+      "file": "s03-join-comp.mp4",
+      "in": 28.95,
+      "out": 33,
+      "badge": "Android TV emulator · Fire OS APK",
+      "vo": [
+        {
+          "id": "s03",
+          "at": 0.2,
+          "in": 14.66,
+          "text": "Nobody fights over the remote."
+        }
+      ],
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 4.05
+        }
+      ]
+    },
+    {
+      "id": "s04a",
+      "file": "s04-cards-comp.mp4",
+      "in": 0,
+      "out": 13.4,
+      "badge": "Android TV emulator · Fire OS APK",
+      "vo": [
+        {
+          "id": "s04",
+          "at": 1
+        }
+      ],
+      "captions": [
+        {
+          "text": "Make it cards: a long page becomes big cards",
+          "from": 3.4,
+          "to": 13.2,
+          "cx": 752,
+          "y": 930
+        }
+      ],
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 3.27
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 40,
+          "from": 2.9,
+          "to": 13.4
+        }
+      ]
+    },
+    {
+      "id": "s04b",
+      "file": "s04-cards-comp.mp4",
+      "in": 17.5,
+      "out": 21.6,
+      "badge": "Android TV emulator · Fire OS APK",
+      "captions": [
+        {
+          "text": "Press OK: Lumo reads the card aloud",
+          "from": 0.3,
+          "to": 3.9,
+          "cx": 752,
+          "y": 930
+        }
+      ],
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 40,
+          "from": 0,
+          "to": 4.1
+        }
+      ]
+    },
+    {
+      "id": "s05a",
+      "file": "s05-quest-comp.mp4",
+      "in": 3.1,
+      "out": 17.6,
+      "badge": "Android TV emulator · Fire OS APK",
+      "vo": [
+        {
+          "id": "s05a",
+          "at": 0.2
+        }
+      ],
+      "captions": [
+        {
+          "text": "Family quest: Speed Safari",
+          "from": 3.3,
+          "to": 11.4,
+          "cx": 752,
+          "y": 930
+        }
+      ],
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 0.11
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 11.71,
+          "to": 14.5
+        },
+        {
+          "x": 120,
+          "y": 170,
+          "w": 57,
+          "h": 54,
+          "from": 11.71,
+          "to": 14.5
+        }
+      ]
+    },
+    {
+      "id": "s05b",
+      "file": "s05-quest-comp.mp4",
+      "in": 20.8,
+      "out": 28.3,
+      "badge": "Android TV emulator · Fire OS APK",
+      "vo": [
+        {
+          "id": "s05b",
+          "at": -2.75
+        }
+      ],
+      "captions": [
+        {
+          "text": "Checked against the page, with proof",
+          "from": 0.8,
+          "to": 7.2,
+          "cx": 752,
+          "y": 930
+        }
+      ],
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 3.41
+        },
+        {
+          "x": 120,
+          "y": 170,
+          "w": 57,
+          "h": 54,
+          "from": 0,
+          "to": 0.01
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 24,
+          "from": 3.11,
+          "to": 7.01
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 6.41,
+          "to": 7.5
+        }
+      ]
+    },
+    {
+      "id": "s05c",
+      "file": "s05-quest-comp.mp4",
+      "in": 30.9,
+      "out": 33.1,
+      "badge": "Android TV emulator · Fire OS APK",
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 2.2
+        },
+        {
+          "x": 120,
+          "y": 170,
+          "w": 57,
+          "h": 54,
+          "from": 0,
+          "to": 2.2
+        }
+      ]
+    },
+    {
+      "id": "s05d",
+      "file": "s05-quest-comp.mp4",
+      "in": 36.9,
+      "out": 43,
+      "badge": "Android TV emulator · Fire OS APK",
+      "vo": [
+        {
+          "id": "s05c",
+          "at": 0.53
+        }
+      ],
+      "captions": [
+        {
+          "text": "Not quite? Lumo says why",
+          "from": 2.9,
+          "to": 6,
+          "cx": 752,
+          "y": 930
+        }
+      ],
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 3.01
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 24,
+          "from": 2.41,
+          "to": 6.1
+        }
+      ]
+    },
+    {
+      "id": "s05e",
+      "file": "s05-quest-comp.mp4",
+      "in": 52.6,
+      "out": 56.6,
+      "badge": "Android TV emulator · Fire OS APK",
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 2.21
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 24,
+          "from": 1.61,
+          "to": 2.41
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 24,
+          "from": 1.91,
+          "to": 4
+        }
+      ]
+    },
+    {
+      "id": "s05f",
+      "file": "s05-quest-comp.mp4",
+      "in": 75,
+      "out": 86,
+      "badge": "Android TV emulator · Fire OS APK",
+      "vo": [
+        {
+          "id": "s05d",
+          "at": 2.2
+        }
+      ],
+      "captions": [
+        {
+          "text": "+100 per find, +50 to finish",
+          "from": 1,
+          "to": 5.4,
+          "cx": 752,
+          "y": 930
+        }
+      ],
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 2.51
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 24,
+          "from": 2.01,
+          "to": 5.31
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 4.71,
+          "to": 5.61
+        }
+      ]
+    },
+    {
+      "id": "s06a",
+      "file": "s06-drift.mp4",
+      "in": 0.8,
+      "out": 25,
+      "speed": 2,
+      "badge": "Android TV emulator · Fire OS APK",
+      "badge_y": 8,
+      "vo": [
+        {
+          "id": "s06a",
+          "at": 0.3
+        }
+      ],
+      "captions": [
+        {
+          "text": "Lumo notices drift from timing alone, on the TV",
+          "from": 0.6,
+          "to": 11.7
+        }
+      ],
+      "blur": [
+        {
+          "x": 100,
+          "y": 26,
+          "w": 254,
+          "h": 56,
+          "from": 1.05,
+          "to": 12.1
+        },
+        {
+          "x": 118,
+          "y": 76,
+          "w": 76,
+          "h": 72,
+          "from": 1.05,
+          "to": 3.65
+        },
+        {
+          "x": 118,
+          "y": 76,
+          "w": 76,
+          "h": 72,
+          "from": 4.1,
+          "to": 6.5
+        },
+        {
+          "x": 118,
+          "y": 76,
+          "w": 76,
+          "h": 72,
+          "from": 6.6,
+          "to": 9.15
+        },
+        {
+          "x": 118,
+          "y": 76,
+          "w": 76,
+          "h": 72,
+          "from": 9.55,
+          "to": 11.9
+        },
+        {
+          "x": 118,
+          "y": 76,
+          "w": 76,
+          "h": 72,
+          "from": 12,
+          "to": 12.1
+        }
+      ]
+    },
+    {
+      "id": "s06b",
+      "file": "s06-drift.mp4",
+      "in": 25,
+      "out": 42.6,
+      "badge": "Android TV emulator · Fire OS APK",
+      "badge_y": 8,
+      "vo": [
+        {
+          "id": "s06b",
+          "at": 0.3
+        },
+        {
+          "id": "s06c",
+          "at": 9
+        }
+      ],
+      "captions": [
+        {
+          "text": "A quest, or a curious detour",
+          "from": 3.1,
+          "to": 8.8,
+          "y": 950
+        },
+        {
+          "text": "Each \"we're fine\" = more patience next time",
+          "from": 9.5,
+          "to": 17.2,
+          "anchor": "top",
+          "y": 72
+        }
+      ],
+      "blur": [
+        {
+          "x": 100,
+          "y": 26,
+          "w": 254,
+          "h": 56,
+          "from": 0,
+          "to": 3.3
+        },
+        {
+          "x": 118,
+          "y": 76,
+          "w": 76,
+          "h": 72,
+          "from": 0,
+          "to": 3.3
+        },
+        {
+          "x": 100,
+          "y": 26,
+          "w": 254,
+          "h": 56,
+          "from": 9,
+          "to": 17.6
+        },
+        {
+          "x": 100,
+          "y": 22,
+          "w": 254,
+          "h": 40,
+          "from": 2.9,
+          "to": 9.4
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "image": "docs/architecture.png",
+      "seconds": 21,
+      "kenburns": true,
+      "vo": [
+        {
+          "id": "s07",
+          "at": 0.3
+        }
+      ],
+      "captions": [
+        {
+          "text": "This recording runs in on-device mode",
+          "from": 16.5,
+          "to": 20.8,
+          "anchor": "top-right",
+          "size": 34,
+          "y": 40
+        }
+      ]
     }
   ],
-
   "end_card": {
-    "image": "docs/end-card.png", "seconds": 3.5,
-    "vo": [ { "id": "s08", "at": 0.3 } ]
+    "image": "docs/end-card.png",
+    "seconds": 3.5,
+    "vo": [
+      {
+        "id": "s08",
+        "at": 0.3
+      }
+    ]
   }
 }
