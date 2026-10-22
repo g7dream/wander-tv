@@ -37,7 +37,7 @@ Wander rebuilds the browser around the couch: everyone can drive, long pages bec
 
 ## Demo video
 
-**[FILL IN: YouTube link]** (about 2:50, narrated by Lumo). The script, voiceover lines and the capture/edit pipeline are in [video/](video/SCRIPT.md).
+**[FILL IN: YouTube link]** (about 2:50, narrated by Lumo). The footage is recorded on the Android TV emulator running the Fire OS APK, and labeled as such: no Fire TV device was available in time. The script, voiceover lines and the capture/edit pipeline are in [video/](video/SCRIPT.md).
 
 ## Screenshots
 

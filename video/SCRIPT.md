@@ -11,7 +11,7 @@ The whole video is one family evening, told by the only member of the household 
 - **Look.** Our own UI carries everything: the lamp-lit aubergine screens, amber focus, the four player colors. The title and end cards (`docs/title-card.png`, `docs/end-card.png`) bookend it with the moth circling the lamp, then wandering off.
 - **People.** No faces needed. Hands, phones and the back of the couch, filmed over the shoulder. Two players: **Maya** (Berry, pink) and **Leo** (Sun, amber). A third phone (**Nana**, Mint) can join in scene 3 to show "up to 4".
 - **Sound.** Lumo's voice, the app's own sounds and Lumo's Polly reading voice. **No music.** If a scene feels empty, add a generated room-tone or soft sound effect, never a song.
-- **Proof it's real.** Every TV shot is recorded from the actual Fire TV with `adb shell screenrecord`, plus at least two over-the-shoulder camera shots of the real TV with the app running (scenes 2 and 3). Scene 1 carries a "Recorded on a real Fire TV" badge.
+- **Where the footage comes from.** No Fire TV device was available in time, so every TV shot is recorded on the Android TV emulator (Android 11, the base of Fire OS 8) running the real Fire OS APK, and every TV shot carries the label "Android TV emulator · Fire OS APK". Phones are the real phone page in Chrome phone emulation, shown side by side with the TV. The app runs in on-device mode in this recording (the AWS account was still locked), so the voiceover never claims AWS answered on screen. If a Fire TV becomes available, re-record the same scenes on it with `video/capture.ps1` and drop the label.
 
 ## Scenes
 
@@ -25,7 +25,7 @@ Timecodes are for the final cut (`video/edl.json` produces exactly this timeline
 | **VO** (`s01`, at 0:00.5) | "Hi, I'm Lumo. I'm a moth. I know a thing or two about staring at bright screens." |
 | **On screen** | Title card: the moth silhouette circling the lamp, "Wander TV", tagline. Fades into the Home screen on the TV: Lumo hovering in the corner (curious mood), the four big tiles, the "join the couch" QR panel. Nobody has joined yet. |
 | **Capture** | `.\video\capture.ps1 -Ip <tv-ip> -Scene s01-home -Seconds 20` with the remote untouched, so Lumo idles, blinks and flutters. |
-| **Caption** | "Meet Lumo" · badge: "Recorded on a real Fire TV" |
+| **Caption** | "Meet Lumo" · badge: "Android TV emulator · Fire OS APK" |
 
 ### Scene 2: The pain (0:10-0:24)
 
@@ -52,7 +52,7 @@ Timecodes are for the final cut (`video/edl.json` produces exactly this timeline
 | | |
 |---|---|
 | **Timecode** | 0:50-1:16 |
-| **VO** (`s04`, at 0:50.5) | "Long pages are hard to read from the couch. Press Make it cards, and I turn the page into big field-guide cards the whole room can read. Want one read out loud? Here's my reading voice." |
+| **VO** (`s04`, at 0:50.5) | "Long pages are hard to read from the couch. Press Make it cards, and I turn the page into big field-guide cards the whole room can read. Want one read out loud? Just press OK." |
 | **On screen** | The long Cheetah article. Maya presses *Make it cards* on her phone (or Play/Pause on the remote). Lumo thinks for a moment, then 3-5 big field-guide cards appear. Leo flips right with his phone. Center on the remote: Lumo reads the card aloud, with the card's text on screen while the Polly voice plays at about 1:07. |
 | **Capture** | `.\video\capture.ps1 -Scene s04-cards -Seconds 60`. screenrecord has no audio, so fetch the exact Polly audio of the card you read (see "Polly audio for scene 4" below) into `video/sfx/polly-card.mp3`; the EDL already places it at 1:07. |
 | **Caption** | "Make it cards: a long page becomes big cards", then "Read aloud with Amazon Polly" |
@@ -62,7 +62,7 @@ Timecodes are for the final cut (`video/edl.json` produces exactly this timeline
 | | |
 |---|---|
 | **Timecode** | 1:16-1:36 (part A), 1:36-2:00 (part B) |
-| **VO** | `s05a` at 1:16.4: "Now the fun part: family quests. Tonight it's Speed Safari. Find three animals faster than a car on the highway." <br> `s05b` at 1:25.6: "Everyone races on their own phone. Found one? Submit it, and I check the page with Amazon Bedrock. I don't just say yes. I show you the sentence that proves it." <br> `s05c` at 1:42: "A house cat? Nice try, Leo." <br> `s05d` at 1:52: "Golden eagle! That's three. Maya wins the safari." |
+| **VO** | `s05a` at 1:16.4: "Now the fun part: family quests. Tonight it's Speed Safari. Find three animals faster than a car on the highway." <br> `s05b` at 1:25.6: "Everyone races on their own phone. Found one? Submit it, and I check the page. I don't just say yes. I show you the sentence that proves it." <br> `s05c` at 1:42: "A house cat? Nice try, Leo." <br> `s05d` at 1:52: "Golden eagle! That's three. Maya wins the safari." |
 | **On screen** | **A:** Quests tile, the picker, the Speed Safari 🐆 intro card. Both phones race. Maya opens *Peregrine falcon* and taps *Submit*. "Lumo is checking your page..." Accepted: "+100 Maya, Peregrine falcon" with the evidence quote from the page on screen. Keep one check in real time so viewers see it's live. **B:** Leo submits *Cat*: a kind "not quite" with the reason. Leo submits *Cheetah*: +100. Maya submits *Golden eagle*: +100 and +50 for finishing, the finale scoreboard (Maya 250, Leo 100), confetti on Maya's phone. |
 | **Capture** | One long take: `.\video\capture.ps1 -Scene s05-quest -Seconds 180`, then cut it with two EDL entries (`s05a` and `s05b` both use `s05-quest.mp4` with different in/out points). Optional 2 s camera shot of Maya's phone celebrating. |
 | **Caption** | "Family quest: Speed Safari", "Checked on AWS, with proof from the page", "Not quite? Lumo says why", "+100 per find, +50 to finish" |
@@ -82,7 +82,7 @@ Timecodes are for the final cut (`video/edl.json` produces exactly this timeline
 | | |
 |---|---|
 | **Timecode** | 2:27-2:46.5 |
-| **VO** (`s07`, at 2:27.5) | "How it works: phones talk to the TV over your own Wi-Fi. Page text leaves the TV only when you ask. Then, on AWS, API Gateway, Lambda, Bedrock with Guardrails, DynamoDB and Polly do the thinking. No network? I still work." |
+| **VO** (`s07`, at 2:27.5) | "How it works: phones talk to the TV over your own Wi-Fi, and page text leaves the TV only when you ask. On AWS, API Gateway, Lambda, Bedrock with Guardrails, DynamoDB and Polly do the thinking. No network? I still work, just like in this video." |
 | **On screen** | `docs/architecture.png` with a slow push-in: phones on the left, the Fire TV app in the middle, the dashed privacy boundary, the AWS pipeline on the right. |
 | **Capture** | Nothing to record: the EDL uses the PNG with `"kenburns": true`. |
 | **Caption** | None (the diagram carries its own labels, including the privacy line). |
@@ -185,7 +185,7 @@ The rules forbid third-party trademarks and copyrighted music or footage without
 ```
 Wander TV is a couch-first web browser for Fire TV. Every phone in the room becomes a keyboard and touchpad (scan a QR code, no app to install), and Lumo, a small moth, turns long pages into big cards, runs family quests judged by AI with the proof shown on screen, and notices when the room starts drifting.
 
-Recorded on a [FILL IN: Fire TV model] running Fire OS.
+Recorded on the Android TV emulator (Android 11, the base of Fire OS 8) running the Wander Fire OS APK: no Fire TV device was available in time. The AWS backend is built and tested but its deploy was blocked by AWS account verification, so this recording runs in on-device mode.
 Built for the Amazon Fire TV hackathon: Fire TV track + AWS Builder challenge.
 
 0:00 Meet Lumo

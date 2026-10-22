@@ -12,6 +12,7 @@ Copy each section into the matching Devpost field. Rules for whoever pastes this
 
 **Verified on the Android TV emulator, running the real app.** We had no Fire TV stick for most of the build, and there is no official Fire OS emulator, so we used the Android TV emulator: system image android-30 (Android 11, the base of Fire OS 8), 1920x1080 at density 320, which is 960x540 dp like a Fire TV Stick. Its WebView was Chromium 90.0.4430.91. Checked end to end there:
 
+- **Demo video:** recorded on this Android TV emulator running the real Fire OS APK, labeled "Android TV emulator · Fire OS APK" on every TV shot, with the real phone page shown side by side. It runs in on-device mode (no AWS), and the narration says so.
 - A phone joins through the page the TV serves on the local network, and a search typed on the phone opens on the TV in about 2 seconds.
 - "Make it cards" on a Simple English Wikipedia article (Mozilla Readability extraction works on Chromium 90).
 - A Speed Safari quest submit scored "+100 Cheetah!", with the evidence sentence on screen.

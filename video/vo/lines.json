@@ -2,14 +2,14 @@
   {"id": "s01", "start": "0:00", "text": "Hi, I'm Lumo. I'm a moth. I know a thing or two about staring at bright screens."},
   {"id": "s02", "start": "0:10", "text": "This is my family's TV. It's the biggest screen in the house, and the hardest one to type on. Cheetah, one letter... at... a... time. Still going."},
   {"id": "s03", "start": "0:25", "text": "So we fixed it. Scan the code, and your phone becomes a keyboard and a touchpad. No app to install. Everyone gets a color, and the cursor wears the color of whoever moved it last. Maya types. Leo scrolls. Nobody fights over the remote."},
-  {"id": "s04", "start": "0:50", "text": "Long pages are hard to read from the couch. Press Make it cards, and I turn the page into big field-guide cards the whole room can read. Want one read out loud? Here's my reading voice."},
+  {"id": "s04", "start": "0:50", "text": "Long pages are hard to read from the couch. Press Make it cards, and I turn the page into big field-guide cards the whole room can read. Want one read out loud? Just press OK."},
   {"id": "s05a", "start": "1:16", "text": "Now the fun part: family quests. Tonight it's Speed Safari. Find three animals faster than a car on the highway."},
-  {"id": "s05b", "start": "1:26", "text": "Everyone races on their own phone. Found one? Submit it, and I check the page with Amazon Bedrock. I don't just say yes. I show you the sentence that proves it."},
+  {"id": "s05b", "start": "1:26", "text": "Everyone races on their own phone. Found one? Submit it, and I check the page. I don't just say yes. I show you the sentence that proves it."},
   {"id": "s05c", "start": "1:42", "text": "A house cat? Nice try, Leo."},
   {"id": "s05d", "start": "1:52", "text": "Golden eagle! That's three. Maya wins the safari."},
   {"id": "s06a", "start": "2:00", "text": "Some nights, the room just drifts. Page, page, page. I know circling when I see it."},
   {"id": "s06b", "start": "2:10", "text": "So I get a little sleepy, and I offer something better: a quest, or a curious detour."},
   {"id": "s06c", "start": "2:18", "text": "Say we're fine, and I believe you. I just wait longer next time. I learn your household. I never nag."},
-  {"id": "s07", "start": "2:27", "text": "How it works: phones talk to the TV over your own Wi-Fi. Page text leaves the TV only when you ask. Then, on AWS, API Gateway, Lambda, Bedrock with Guardrails, DynamoDB and Polly do the thinking. No network? I still work."},
+  {"id": "s07", "start": "2:27", "text": "How it works: phones talk to the TV over your own Wi-Fi, and page text leaves the TV only when you ask. On AWS, API Gateway, Lambda, Bedrock with Guardrails, DynamoDB and Polly do the thinking. No network? I still work, just like in this video."},
   {"id": "s08", "start": "2:47", "text": "Browse together. Wander well."}
 ]
