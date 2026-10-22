@@ -45,7 +45,8 @@ internal object LumoAdvice {
     private val VARIANTS: Map<DriftReason, Pair<Mood, List<Variant>>> = mapOf(
         DriftReason.RAPID_HOPPING to (Mood.CONCERNED to listOf(
             Variant({ "So many pages, so fast! My wings are dizzy. Want a quest with a finish line?" }, QUESTS.getValue("speed-safari")),
-            Variant({ s -> "${pages(s.pagesLast5Min)} in five minutes! Let's slow down and dive deep instead." }, QUESTS.getValue("deep-dive")),
+            // No count here: the detail line under the headline already shows the measured burst.
+            Variant({ "Page after page after page! Let's slow down and dive deep instead." }, QUESTS.getValue("deep-dive")),
             Variant({ "We're zooming like moths around a porch light. Let's land on one wonder?" }, DETOURS.getValue("octopus")),
         )),
         DriftReason.ENDLESS_SCROLL to (Mood.SLEEPY to listOf(
@@ -63,8 +64,6 @@ internal object LumoAdvice {
             Variant({ "Way past moth o'clock! Let's end with something gentle and glowy." }, DETOURS.getValue("moth")),
         )),
     )
-
-    private fun pages(n: Int): String = if (n > 1) "$n pages" else "So many pages"
 
     private fun times(n: Int): String = if (n > 2) "$n times" else "again"
 
