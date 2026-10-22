@@ -133,8 +133,7 @@ async function waitPage(log, who, slug, timeout = 15000) {
   return s;
 }
 
-/** Maya scrolls the page with the phone's scroll wheel (the rail on the touchpad's right edge). Unused for now:
- *  phone scrolling has no effect on Wikipedia pages with the current APK (see README.md, known issues). */
+/** Maya scrolls the page with the phone's scroll wheel (the rail on the touchpad's right edge). Unused for now. */
 async function mayaRail(log, dy = 120, ms = 700) {
   const m = ctx.maya;
   const r = await m.rect('#rail');
@@ -268,12 +267,13 @@ const SCENES = {
       await wait(2200);
       // Cursor math (CursorMotion.kt): a new page puts the cursor at (960, 497) TV px; below 120 phone px/s
       // the touchpad gain is a steady 1.3 dp = 2.6 TV px per phone px. Leo's stroke ends near (698, 654);
-      // Maya's slow stroke (+97, -148 phone px) lands near (950, 270): the blank band right of the article
-      // title, so her tap shows its ripple without opening a link or the site's search box.
+      // Maya's slow stroke (+97, -148 phone px) lands near (950, 270): on an unscrolled page the blank band right
+      // of the article title. After Leo's scroll her tap sends the page back to the top (README, known issues), so
+      // the cut ends before the tap.
       log.mark('leo: touchpad move + scroll');
       await leoMove(-100, 60);
       await wait(250);
-      await ctx.leo.scroll(330, 12, 70); // page scroll (see README: no effect on Wikipedia with this APK)
+      await ctx.leo.scroll(330, 12, 70); // page scroll: about 1.5 screens in 0.85 s (needs the 1137733 scroll fix)
       await wait(2400);
       await mayaPadRel(log, 0.30, 0.72, 97, -148, 1900);
       await wait(800);

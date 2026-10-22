@@ -1,5 +1,5 @@
 {
-  "_comment": "Edit list for video/make_video.ps1, emulator cut. Times are seconds. Clip 'file' names resolve in video/raw/, VO ids resolve to video/vo/<id>.mp3, other relative paths resolve from the repo root. Scene 'in'/'out' are source times; 'at'/'from'/'to' are relative to the start of that scene in the final cut (after 'speed'); a negative VO 'at' starts the line in the previous segment. A VO entry with 'in'/'out' plays only that part of the take, with 'text' as its subtitle. Scenes split into several entries (s03, s04, s05, s06) are one take cut down; *-comp clips are the TV and Maya's phone side by side (video/tools/composite.mjs). Blur boxes hide the Wikipedia wordmark and favicon (windows from video/raw/<scene>.blur.json). See video/SCRIPT.md.",
+  "_comment": "Edit list for video/make_video.ps1, emulator cut. Times are seconds. Clip 'file' names resolve in video/raw/, VO ids resolve to video/vo/<id>.mp3, other relative paths resolve from the repo root. Scene 'in'/'out' are source times; 'at'/'from'/'to' are relative to the start of that scene in the final cut (after 'speed'); a negative VO 'at' starts the line in the previous segment. A VO entry with 'in'/'out' plays only that part of the take, with 'text' as its subtitle. Scenes split into several entries (s04, s05, s06) are one take cut down; *-comp clips are the TV and Maya's phone side by side (video/tools/composite.mjs). 'sfx' entries are the app's own UI sounds (app/src/main/res/raw) at the moments the app played them in the take, since screenrecord records no audio. Blur boxes hide the Wikipedia wordmark and favicon (windows from video/raw/<scene>.blur.json). See video/SCRIPT.md.",
   "fps": 30,
   "clip_volume": 0.25,
   "max_seconds": 178,
@@ -46,6 +46,13 @@
           "at": 0.3
         }
       ],
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_select.wav",
+          "at": 0.6,
+          "volume": 0.16
+        }
+      ],
       "captions": [
         {
           "text": "Typing with a remote: one letter at a time",
@@ -58,10 +65,10 @@
       ]
     },
     {
-      "id": "s03a",
+      "id": "s03",
       "file": "s03-join-comp.mp4",
       "in": 3,
-      "out": 21.9,
+      "out": 28.15,
       "badge": "Android TV emulator · Fire OS APK",
       "vo": [
         {
@@ -70,6 +77,31 @@
           "in": 0,
           "out": 13.3,
           "text": "So we fixed it. Scan the code, and your phone becomes a keyboard and a touchpad. No app to install. Everyone gets a color, and the cursor wears the color of whoever moved it last. Maya types."
+        },
+        {
+          "id": "s03",
+          "at": 18.86,
+          "in": 13.3,
+          "out": 14.66,
+          "text": "Leo scrolls."
+        },
+        {
+          "id": "s03",
+          "at": 22.3,
+          "in": 14.66,
+          "text": "Nobody fights over the remote."
+        }
+      ],
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_join.wav",
+          "at": 3.33,
+          "volume": 0.21
+        },
+        {
+          "file": "app/src/main/res/raw/sfx_join.wav",
+          "at": 7.65,
+          "volume": 0.21
         }
       ],
       "captions": [
@@ -94,66 +126,16 @@
           "y": 132,
           "w": 191,
           "h": 42,
-          "from": 17.45,
-          "to": 18.9
+          "from": 15.92,
+          "to": 19.3
         },
         {
           "x": 120,
           "y": 170,
           "w": 57,
           "h": 54,
-          "from": 17.45,
-          "to": 18.9
-        }
-      ]
-    },
-    {
-      "id": "s03b",
-      "file": "s03-join-comp.mp4",
-      "in": 24.75,
-      "out": 26.2,
-      "badge": "Android TV emulator · Fire OS APK",
-      "blur": [
-        {
-          "x": 107,
-          "y": 132,
-          "w": 191,
-          "h": 42,
-          "from": 0,
-          "to": 1.45
-        },
-        {
-          "x": 120,
-          "y": 170,
-          "w": 57,
-          "h": 54,
-          "from": 0,
-          "to": 1.4
-        }
-      ]
-    },
-    {
-      "id": "s03c",
-      "file": "s03-join-comp.mp4",
-      "in": 28.95,
-      "out": 33,
-      "badge": "Android TV emulator · Fire OS APK",
-      "vo": [
-        {
-          "id": "s03",
-          "at": 0.2,
-          "in": 14.66,
-          "text": "Nobody fights over the remote."
-        }
-      ],
-      "blur": [
-        {
-          "x": 107,
-          "y": 132,
-          "w": 191,
-          "h": 42,
-          "from": 0,
-          "to": 4.05
+          "from": 15.92,
+          "to": 20.12
         }
       ]
     },
@@ -167,6 +149,18 @@
         {
           "id": "s04",
           "at": 1
+        }
+      ],
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_chime.wav",
+          "at": 6.55,
+          "volume": 0.19
+        },
+        {
+          "file": "app/src/main/res/raw/sfx_whoosh.wav",
+          "at": 12.15,
+          "volume": 0.16
         }
       ],
       "captions": [
@@ -200,14 +194,14 @@
     {
       "id": "s04b",
       "file": "s04-cards-comp.mp4",
-      "in": 17.5,
-      "out": 21.6,
+      "in": 17.6,
+      "out": 20.4,
       "badge": "Android TV emulator · Fire OS APK",
       "captions": [
         {
           "text": "Press OK: Lumo reads the card aloud",
-          "from": 0.3,
-          "to": 3.9,
+          "from": 0.2,
+          "to": 2.65,
           "cx": 752,
           "y": 930
         }
@@ -219,7 +213,7 @@
           "w": 191,
           "h": 40,
           "from": 0,
-          "to": 4.1
+          "to": 2.8
         }
       ]
     },
@@ -233,6 +227,13 @@
         {
           "id": "s05a",
           "at": 0.2
+        }
+      ],
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_chime.wav",
+          "at": 3.07,
+          "volume": 0.19
         }
       ],
       "captions": [
@@ -281,6 +282,13 @@
         {
           "id": "s05b",
           "at": -2.75
+        }
+      ],
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_success.wav",
+          "at": 2.77,
+          "volume": 0.23
         }
       ],
       "captions": [
@@ -364,6 +372,13 @@
           "at": 0.53
         }
       ],
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_fail.wav",
+          "at": 2.43,
+          "volume": 0.18
+        }
+      ],
       "captions": [
         {
           "text": "Not quite? Lumo says why",
@@ -398,6 +413,13 @@
       "in": 52.6,
       "out": 56.6,
       "badge": "Android TV emulator · Fire OS APK",
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_success.wav",
+          "at": 1.72,
+          "volume": 0.23
+        }
+      ],
       "blur": [
         {
           "x": 107,
@@ -435,6 +457,18 @@
         {
           "id": "s05d",
           "at": 2.2
+        }
+      ],
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_success.wav",
+          "at": 1.85,
+          "volume": 0.23
+        },
+        {
+          "file": "app/src/main/res/raw/sfx_success.wav",
+          "at": 5.05,
+          "volume": 0.23
         }
       ],
       "captions": [
@@ -560,6 +594,18 @@
         {
           "id": "s06c",
           "at": 9
+        }
+      ],
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_chime.wav",
+          "at": 3.02,
+          "volume": 0.19
+        },
+        {
+          "file": "app/src/main/res/raw/sfx_back.wav",
+          "at": 9.2,
+          "volume": 0.14
         }
       ],
       "captions": [

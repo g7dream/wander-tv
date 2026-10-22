@@ -32,7 +32,7 @@ Set `CAPTURE_TMP` to a scratch folder for the Chrome profiles (default: the OS t
 | `composite.mjs` | 1920x1080 / 30 fps side by side: lamp-lit background, TV 1440x810 with a hairline border, phone 372x826 with rounded corners, labels in Atkinson Hyperlegible Bold. Writes `<scene>-comp.mp4` and `<scene>-comp.times.txt` (every logged action in clip seconds). `--tv-shift` / `--phone-shift` nudge the sync. |
 | `sheet.mjs` | Contact sheet with time stamps, for checking a take by eye. |
 | `logo-blur.mjs` | Finds when the Wikipedia wordmark (page header) and the site favicon (Wander's title strip) are on screen and writes `<scene>.blur.json` with EDL blur boxes for the plain TV clip and for the composite. |
-| `emulator-edl.mjs` | Writes `video/edl.json` for the emulator cut: the cut points of every scene (s03-s06 are each cut into several entries), VO placements set from the capture timestamps, captions placed off the app's own UI, and the `<scene>.blur.json` windows moved into each entry's time. Re-run it after re-recording a scene and updating its cut points. |
+| `emulator-edl.mjs` | Writes `video/edl.json` for the emulator cut: the cut points of every scene (s04-s06 are each cut into several entries), VO placements set from the capture timestamps, captions placed off the app's own UI, the app's own UI sounds (`sfx`) at the moments the app played them, and the `<scene>.blur.json` windows moved into each entry's time. Re-run it after re-recording a scene and updating its cut points. |
 
 ## How the pieces line up
 
@@ -52,13 +52,18 @@ Set `CAPTURE_TMP` to a scratch folder for the Chrome profiles (default: the OS t
 
 ## Known issues found while recording
 
-* **Phone scrolling does nothing on Wikipedia pages (app bug).** `W.scrollAt` in
-  `app/src/main/assets/js/wander-bridge.js` picks `<body>` as the scroller because Wikipedia sets
+* **Phone scrolling did nothing on Wikipedia pages (app bug, fixed in 1137733).** `W.scrollAt` in
+  `app/src/main/assets/js/wander-bridge.js` picked `<body>` as the scroller because Wikipedia sets
   `body { overflow-y: scroll }` while `<html>` stays `visible`, so the overflow belongs to the viewport and
-  `body.scrollTop` never moves. Phone scroll, the scroll wheel, remote edge nudges and page up/down all go
-  through it. Fix: in `scrollerAt`, stop at `document.body` (treat it like the root) unless the computed
-  `overflow-y` of `<html>` is not `visible`. Until then the "Leo scrolls" beat shows only Leo's amber cursor,
-  and every Wikipedia page keeps its header (blur it, see `logo-blur.mjs`).
+  `body.scrollTop` never moved. `scrollerAt` now treats `<body>` as the window unless `<html>` scrolls itself, and
+  s03 was re-recorded with Leo's scroll moving the page. s04 and s05 were recorded before the fix (their pages stay
+  at the top, so they keep the Wikipedia header: blur it, see `logo-blur.mjs`).
+* **A phone tap right after a phone scroll sends the page back to the top (app bug, open).** In the s03 re-take,
+  Maya's first tap on the scrolled Cheetah page jumped it to the top (no navigation, title strip unchanged). Likely
+  cause: `BrowseLayer.tapAtCursor` calls `requestFocus()` on the WebView when it has no focus, and a WebView taking
+  focus that way focuses the page's first focusable element, scrolling it into view. The s03 cut ends before her tap.
+* **`logo-blur.mjs` assumes the page is not scrolled.** Once a page scrolls, the wordmark region holds article text
+  and still reads as "wordmark on screen"; `emulator-edl.mjs` clips the s03 wordmark window at the scroll.
 * **Starting a quest from Home, then closing the intro with OK or Back** opens the quest's starter web search
   (a search engine's results page, with its logo). In s05 Maya types her first answer while the intro is up and
   her Go closes it, so no search page is shown.
