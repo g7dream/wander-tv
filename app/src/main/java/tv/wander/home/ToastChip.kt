@@ -23,7 +23,8 @@ class ToastChip(context: Context) : FrameLayout(context) {
     private val chip = LinearLayout(context)
     private val dot = View(context)
     private val label = Ui.text(context, TypeScale.BODY, Palette.CREAM, Fonts.bodyBold).apply {
-        maxLines = 2
+        // Three, for the narrow column beside the Lumo panel ("Nudges off. Lumo stays quiet.").
+        maxLines = 3
         ellipsize = TextUtils.TruncateAt.END
     }
     private var hideTask: Runnable? = null

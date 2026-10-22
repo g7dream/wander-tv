@@ -249,6 +249,18 @@ class RescueOverlay(context: Context, private val listener: Listener) : FrameLay
         hints.getChildAt(1)?.visibility = if (options.isEmpty()) View.GONE else View.VISIBLE
     }
 
+    /**
+     * "Saturn up close 🪐" must never wrap with the emoji alone on the second line: the space before a trailing
+     * emoji becomes a no-break space, so the emoji travels with the last word.
+     */
+    private fun glueTrailingEmoji(label: String): String {
+        val t = label.trim()
+        val cut = t.lastIndexOf(' ')
+        if (cut <= 0) return t
+        val tail = t.substring(cut + 1)
+        return if (tail.isNotEmpty() && tail.none { it.isLetterOrDigit() }) t.substring(0, cut) + ' ' + tail else t
+    }
+
     private fun optionCard(option: RescueOption): View {
         val ctx = context
         val accent = accentFor(option.kind)
@@ -274,7 +286,7 @@ class RescueOverlay(context: Context, private val listener: Listener) : FrameLay
             letterSpacing = 0.1f
             maxLines = 1
         })
-        titles.addView(Ui.text(ctx, TypeScale.H2, Palette.CREAM, Fonts.display, option.label).apply {
+        titles.addView(Ui.text(ctx, TypeScale.H2, Palette.CREAM, Fonts.display, glueTrailingEmoji(option.label)).apply {
             maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
             setLineSpacing(0f, 0.92f)

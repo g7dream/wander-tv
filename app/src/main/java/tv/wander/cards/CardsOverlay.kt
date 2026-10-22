@@ -190,7 +190,9 @@ class CardsOverlay(context: Context, private val listener: Listener) : FrameLayo
         currentIndex = 0
         pos = 0f
         val domain = Craft.domainOf(deck.sourceUrl)
-        fromTitle.text = deck.sourceTitle.trim().ifEmpty { domain.ifEmpty { "this page" } }
+        // "Natural satellite", not "Natural satellite - Simple English Wikipedia, the free encyclopedia".
+        val title = deck.sourceTitle.trim().let { if (it.isEmpty()) it else tv.wander.browse.PageTexts.displayTitle(it, deck.sourceUrl) }
+        fromTitle.text = title.ifEmpty { domain.ifEmpty { "this page" } }
         if (deck.fromAi) {
             provenance.text = "Made by Lumo with Amazon Bedrock"
             provenance.setTextColor(Palette.LAMP)

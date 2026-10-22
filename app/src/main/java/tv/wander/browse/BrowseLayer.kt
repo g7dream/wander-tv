@@ -85,6 +85,9 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
     val currentUrl: String get() = pageUrl
     val currentTitle: String get() = pageTitle
 
+    /** The site whose favicon the strip shows ("" before the first one arrives). */
+    private var iconHost = ""
+
     private var web: WebView? = null
     private var engineMissingView: View? = null
     private var engineFailedAt = 0L
@@ -602,7 +605,9 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
             pageTitle = ""
             view.setBackgroundColor(Color.WHITE) // pages that don't paint a background expect white
             strip.setPage("", u)
-            strip.setIcon(favicon)
+            // WebView hands over the icon it is still showing, which is the previous page's: on a new site that
+            // would put Wikipedia's "W" on NASA until NASA's own icon arrives.
+            strip.setIcon(if (favicon != null && iconHost == PageTexts.hostLabel(u)) favicon else null)
             revealStrip()
             if (fieldFocused) setField(false, null)
             safeListener { onPageStarted(u) }
@@ -702,7 +707,10 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
         }
 
         override fun onReceivedIcon(view: WebView, icon: Bitmap?) = guardUnit("icon") {
-            if (view === web && offlineFor == null) strip.setIcon(icon)
+            if (view === web && offlineFor == null) {
+                strip.setIcon(icon)
+                if (icon != null) iconHost = PageTexts.hostLabel(pageUrl)
+            }
         }
 
         override fun onShowCustomView(view: View?, callback: CustomViewCallback?) = guardUnit("fullscreen") {

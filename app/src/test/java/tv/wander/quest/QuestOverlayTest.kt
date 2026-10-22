@@ -229,6 +229,33 @@ class QuestOverlayTest {
     }
 
     @Test
+    fun finaleNeverCutsALongQuoteInHalf() {
+        // The quotes the offline judge produced on the emulator (Simple English Wikipedia): all three wrap.
+        val activity = Snap.activity()
+        val overlay = QuestOverlay(activity, Recorder())
+        stage(activity, overlay)
+        val engine = QuestEngine().apply { start(speed) }
+        val ps = listOf(maya, sam, leo)
+        engine.apply("p4", verdict("Cheetah", "It is the fastest land animal and can run up to 105 kilometres per hour, and accelerate from 0 to 97 kilometres per hour in less than 3…"), ps)
+        engine.apply("p2", verdict("Peregrine falcon", "It can go up to 322 km/h in a dive, which means it is the fastest animal in the world."), ps)
+        val last = engine.apply("p1", verdict("Golden eagle", "Golden eagles can dive at about 240 km/h to catch their prey."), ps)
+        overlay.showFinale(last.board)
+        Snap.settle(650)
+        overlay.findAll<ConfettiView>().single().freezeAt(2700f)
+        Snap.save(activity, "quest_finale_long_quotes")
+        val quotes = overlay.findAll<android.widget.TextView>().filter { it.text.startsWith("“") && it.isShown }
+        assertEquals(3, quotes.size)
+        for (q in quotes) {
+            val column = q.parent as View
+            assertTrue("\"${q.text}\" runs past its column", q.bottom <= column.height)
+            // A list squeezed into its column hands the last quote whatever height is left: its lines then
+            // overflow the view and get cut through the middle.
+            val needed = q.layout.getLineBottom(q.layout.lineCount - 1) + q.compoundPaddingTop + q.compoundPaddingBottom
+            assertTrue("\"${q.text}\" is cut mid-line ($needed > ${q.height})", needed <= q.height)
+        }
+    }
+
+    @Test
     fun finaleDefaultsToAnotherQuestAndBackMeansBrowse() {
         val activity = Snap.activity()
         val rec = Recorder()

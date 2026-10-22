@@ -163,10 +163,12 @@ class CompanionPanel(context: Context, private val listener: Listener) : FrameLa
         subtitle.text = Lines.panelIntro(stops.size)
         setAi(aiOnline)
         val minutes = stats.sessionMinutes.coerceAtLeast(0)
-        val pages = stats.pagesTotal.coerceAtLeast(0)
+        // Quest hunting doesn't count toward drift, so after a quest the drift tally can read "0 pages" right
+        // beside "12 stops so far". The tile never shows fewer pages than the trail does.
+        val pages = maxOf(stats.pagesTotal, stops.size).coerceAtLeast(0)
         statMinutes.set(if (minutes == 0 && pages > 0) "<1" else minutes.toString(), if (minutes == 1) "minute" else "minutes")
         statPages.set(pages.toString(), if (pages == 1) "page" else "pages")
-        statDwell.set(if (pages == 0) "–" else dwell(stats.avgDwellSec), "per page")
+        statDwell.set(if (stats.pagesTotal <= 0) "–" else dwell(stats.avgDwellSec), "per page")
         nudgesRow.setOn(nudgesOn, animate = false)
         demoRow.setOn(demoMode, animate = false)
         buildTrail(stops)

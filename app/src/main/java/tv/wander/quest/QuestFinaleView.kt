@@ -109,7 +109,7 @@ internal class QuestFinaleView(
 
     fun celebrate() = confetti.burst()
 
-    private fun foundColumn(board: QuestBoard): View = LinearLayout(context).apply {
+    private fun foundColumn(board: QuestBoard): View = FoundList(context).apply {
         orientation = LinearLayout.VERTICAL
         addView(Ui.text(context, TypeScale.H2, Palette.CREAM, Fonts.display, "What we found"))
         val found = board.found
@@ -146,6 +146,7 @@ internal class QuestFinaleView(
                 addView(Ui.text(context, TypeScale.CAPTION, Palette.MUTED, Fonts.body, "“${ev.trim('"', '“', '”')}”").apply {
                     maxLines = quoteLines
                     ellipsize = TextUtils.TruncateAt.END
+                    quotes += this
                 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                     leftMargin = dpi(38f)
                     topMargin = dpi(4f)
@@ -161,6 +162,27 @@ internal class QuestFinaleView(
     companion object {
         private const val MIDDLE_TOP = 142f
         private const val MIDDLE_H = 278f
+    }
+}
+
+/**
+ * "What we found": quotes get two lines while the whole list fits its column, and drop to one line when three
+ * long quotes would otherwise run past the bottom and be cut in half. It only ever shrinks, so a layout pass
+ * can never flip it back and forth.
+ */
+private class FoundList(context: Context) : LinearLayout(context) {
+    val quotes = ArrayList<TextView>()
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val limit = MeasureSpec.getSize(heightMeasureSpec)
+        val tall = quotes.filter { it.maxLines > 1 }
+        if (MeasureSpec.getMode(heightMeasureSpec) != MeasureSpec.UNSPECIFIED && limit > 0 && tall.isNotEmpty()) {
+            // Measured against the real height, the last children only get what is left and quietly come out
+            // short; an unbounded pass shows how tall the list really wants to be.
+            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+            if (measuredHeight > limit) for (q in tall) q.maxLines = 1
+        }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 }
 
@@ -222,7 +244,9 @@ internal class PodiumView(context: Context, players: List<Player>) : View(contex
             val p = ranked.getOrNull(place) ?: continue
             val color = Palette.player(p.colorIndex)
             val cx = slotX[slot]
-            val top = base - heights[place]
+            // Ties share a rank, so they stand on blocks of the same height.
+            val rank = 1 + ranked.count { it.score > p.score }
+            val top = base - heights[(rank - 1).coerceIn(0, heights.size - 1)]
             val r = dp(14f)
             rect.set(cx - blockW / 2f, top, cx + blockW / 2f, base)
             path.reset()
@@ -237,7 +261,6 @@ internal class PodiumView(context: Context, players: List<Player>) : View(contex
             val fmS = scorePaint.fontMetrics
             canvas.drawText(p.score.toString(), cx, top + dp(14f) - fmS.ascent, scorePaint)
             rankPaint.color = Palette.withAlpha(Palette.INK, 0.72f)
-            val rank = 1 + ranked.count { it.score > p.score }
             canvas.drawText(ordinal(rank).uppercase(), cx, top + dp(14f) - fmS.ascent + dp(24f), rankPaint)
             // Name and avatar above the block.
             val nameY = top - dp(12f)

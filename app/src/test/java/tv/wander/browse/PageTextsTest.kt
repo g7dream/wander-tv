@@ -93,6 +93,8 @@ class PageTextsTest {
     @Test
     fun displayTitleDropsTheSiteName() {
         assertEquals("Cheetah", PageTexts.displayTitle("Cheetah - Wikipedia", "https://en.wikipedia.org/wiki/Cheetah"))
+        assertEquals("Golden eagle", PageTexts.displayTitle(
+            "Golden eagle - Simple English Wikipedia, the free encyclopedia", "https://simple.wikipedia.org/wiki/Golden_eagle"))
         assertEquals("moths that glow", PageTexts.displayTitle("moths that glow at DuckDuckGo", "https://duckduckgo.com/?q=moths"))
         assertEquals("Speed Safari", PageTexts.displayTitle("Speed Safari – National Geographic Kids", "https://kids.nationalgeographic.com/x"))
         assertEquals("Cats", PageTexts.displayTitle("Cats | BBC", "https://www.bbc.co.uk/cats"))

@@ -154,9 +154,46 @@ class OfflineAiTest {
     @Test
     fun alreadyFoundItemsAreSkippedWithNormalization() {
         val v = OfflineAi.checkQuest(SamplePages.SPEED_SAFARI, SamplePages.CHEETAH, listOf("  CHEETAHS "))
-        assertFalse(v.pass)
-        assertNull(v.item)
+        // The page proves an answer that's already on the board: the item comes back so the engine can call it
+        // a duplicate and say who found it first.
+        assertTrue(v.pass)
+        assertEquals("Cheetah", v.item)
         assertTrue(v.reason.contains("already on the board"))
+    }
+
+    @Test
+    fun aDuplicatePageNamesWhoFoundItFirst() {
+        val engine = tv.wander.quest.QuestEngine().apply { start(SamplePages.SPEED_SAFARI) }
+        val leo = tv.wander.model.Player("p1", "Leo", 0)
+        val ava = tv.wander.model.Player("p2", "Ava", 2)
+        val players = listOf(leo, ava)
+        val first = engine.apply("p1", OfflineAi.checkQuest(SamplePages.SPEED_SAFARI, SamplePages.CHEETAH, emptyList()), players)
+        assertTrue(first is tv.wander.model.QuestOutcome.Accepted)
+        val again = OfflineAi.checkQuest(SamplePages.SPEED_SAFARI, SamplePages.CHEETAH, engine.found.map { it.item })
+        val outcome = engine.apply("p2", again, players)
+        assertTrue(outcome is tv.wander.model.QuestOutcome.Duplicate)
+        assertEquals(0, ava.score)
+        assertTrue(tv.wander.quest.QuestEngine.lineFor(outcome, players).contains("Leo found it first"))
+    }
+
+    @Test
+    fun aPageWithoutTheQuestsFactQuotesLumosOwnFact() {
+        // Simple English Wikipedia's golden eagle article never gives a speed; the first sentence even carries
+        // the mobile tagline glued on front.
+        val page = PageText(
+            "https://simple.wikipedia.org/wiki/Golden_eagle", "Golden eagle",
+            "species of bird of prey The golden eagle (Aquila chrysaetos) is one of the best-known birds of prey in " +
+                "the northern hemisphere. It is the most widely distributed species of eagle. Golden eagles use their " +
+                "agility and speed combined with powerful feet and massive, sharp talons to snatch up prey.",
+        )
+        val quest = SamplePages.SPEED_SAFARI.copy(
+            offline = SamplePages.SPEED_SAFARI.offline +
+                tv.wander.model.OfflineAnswer("Golden eagle", listOf("golden eagle", "golden eagles"), "Golden eagles can dive at about 240 km/h."),
+        )
+        val v = OfflineAi.checkQuest(quest, page, emptyList())
+        assertTrue(v.pass)
+        assertEquals("Golden eagle", v.item)
+        assertEquals("Golden eagles can dive at about 240 km/h.", v.evidence)
     }
 
     @Test
@@ -278,6 +315,15 @@ class OfflineAiTest {
             OfflineAi.advise(stats(pages = it), DriftSignal(DriftReason.RAPID_HOPPING, "h", "d")).line
         }.toSet()
         assertTrue(lines.size >= 2)
+    }
+
+    @Test
+    fun twoNudgesInARowNeverSayTheSameLine() {
+        // On the emulator two hopping nudges a minute apart landed on the same variant (5 pages + 1 minute later).
+        val signal = DriftSignal(DriftReason.RAPID_HOPPING, "h", "d")
+        val first = OfflineAi.advise(stats(pages = 5), signal).line
+        val second = OfflineAi.advise(stats(pages = 5), signal).line
+        assertTrue(first != second)
     }
 
     @Test

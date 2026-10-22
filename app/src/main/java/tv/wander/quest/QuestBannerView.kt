@@ -95,7 +95,7 @@ internal class QuestBannerView(context: Context) : FrameLayout(context) {
                 val finderName = when {
                     finder == null -> "someone"
                     finder.id == player.id -> "you"
-                    else -> displayName(finder)
+                    else -> midSentence(displayName(finder))
                 }
                 setBadge(AvatarView(context, finder?.let { displayName(it) } ?: "?", finderColor))
                 frame(finderColor)
@@ -115,7 +115,7 @@ internal class QuestBannerView(context: Context) : FrameLayout(context) {
                 frame(Palette.CORAL)
                 headline.text = SpannableStringBuilder().apply {
                     append("Not quite, ", ForegroundColorSpan(Palette.CORAL))
-                    append(name, ForegroundColorSpan(me))
+                    append(midSentence(name), ForegroundColorSpan(me))
                 }
                 val reason = outcome.reason.trim()
                 quote.text = if (reason.isNotEmpty()) "“${reason.trim('"', '“', '”')}”" else "That page doesn't prove it yet."
@@ -124,6 +124,9 @@ internal class QuestBannerView(context: Context) : FrameLayout(context) {
             }
         }
     }
+
+    /** "Not quite, the couch": the remote's player reads right in the middle of a sentence too. */
+    private fun midSentence(name: String): String = if (name == COUCH_NAME) "the couch" else name
 
     private fun frame(accent: Int) {
         row.background = Ui.roundRect(context, Palette.NIGHT, 26f, Palette.withAlpha(accent, 0.7f), 2f)
@@ -135,6 +138,9 @@ internal class QuestBannerView(context: Context) : FrameLayout(context) {
         badgeHolder.addView(view, LayoutParams(dpi(64f), dpi(64f), Gravity.CENTER))
     }
 }
+
+/** The remote's own player (MainActivity's couch player). */
+private const val COUCH_NAME = "The couch"
 
 private fun SpannableStringBuilder.append(text: CharSequence, span: Any): SpannableStringBuilder {
     val start = length

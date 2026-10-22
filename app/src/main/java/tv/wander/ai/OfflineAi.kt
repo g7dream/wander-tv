@@ -52,8 +52,9 @@ object OfflineAi {
 
     /**
      * Judges a quest from [Quest.offline]: an answer matches when one of its keywords is in the page title or
-     * appears at least twice in the text, and it is not already found. Generated quests without offline answers
-     * get an honest "I can only check this online".
+     * appears at least twice in the text. A new answer wins; a page that only proves an answer already found
+     * passes with that item, so the quest engine scores it as a duplicate and names who found it first.
+     * Generated quests without offline answers get an honest "I can only check this online".
      */
     fun checkQuest(quest: Quest, page: PageText, alreadyFound: List<String>): Verdict = try {
         judge(quest, page, alreadyFound)
@@ -115,15 +116,16 @@ object OfflineAi {
         val pick = specific.maxByOrNull { it.strength }
         if (pick == null) {
             val dup = repeats.maxByOrNull { it.strength }
-            val reason = if (dup != null) {
-                "${dup.answer.item} is already on the board! Can you find a different one?"
-            } else NO_MATCH_REASON
-            return Verdict(false, null, TextKit.clamp(reason, REASON_MAX), null, fromAi = false)
+                ?: return Verdict(false, null, TextKit.clamp(NO_MATCH_REASON, REASON_MAX), null, fromAi = false)
+            // The page does prove an answer, just one that's already on the board. Naming it lets the quest
+            // engine score it as a duplicate, so Lumo can say who found it first (SPEC section 8).
+            val reason = "${dup.answer.item} is already on the board! Can you find a different one?"
+            return Verdict(true, dup.answer.item, TextKit.clamp(reason, REASON_MAX), null, fromAi = false)
         }
 
-        val evidence = evidenceFor(page, pick.keyword, quest) ?: pick.answer.fact.takeIf { it.isNotBlank() }
-        val fact = pick.answer.fact.trim().replaceFirstChar { it.uppercaseChar() }
-        val reason = if (fact.isEmpty()) "Yes! ${pick.answer.item} counts!" else "Yes! ${pick.answer.item} counts! $fact"
+        val line = pick.answer.fact.trim().replaceFirstChar { it.uppercaseChar() }
+        val evidence = evidenceFor(page, pick.keyword, quest, haveFact = line.isNotEmpty()) ?: line.takeIf { it.isNotEmpty() }
+        val reason = if (line.isEmpty()) "Yes! ${pick.answer.item} counts!" else "Yes! ${pick.answer.item} counts! $line"
         return Verdict(
             pass = true,
             item = pick.answer.item,
@@ -137,9 +139,11 @@ object OfflineAi {
      * The page sentence that proves the find, trimmed around the keyword to fit on screen. Candidates are the
      * sentences naming the keyword plus the follow-up that carries on about it ("It can run up to 105 km/h").
      * A sentence with the quest's own kind of fact wins (a speed for Speed Safari, moons for Moon Collectors),
-     * then any measurement, then the first mention.
+     * then any measurement, then the first mention. When the quest is judged on a kind of fact the page never
+     * states near the find (Simple English Wikipedia's "Golden eagle" has no speed), null when [haveFact] so the
+     * caller quotes Lumo's own fact instead of a sentence that proves nothing.
      */
-    private fun evidenceFor(page: PageText, keyword: String, quest: Quest): String? {
+    private fun evidenceFor(page: PageText, keyword: String, quest: Quest, haveFact: Boolean): String? {
         val regex = TextKit.keywordRegex(keyword)
         val sentences = TextKit.sentences(page.text.take(6000), page.headings).filter { it.text.length >= 20 }
         val mentions = sentences.indices.filter { regex.containsMatchIn(TextKit.normalize(sentences[it].text)) }
@@ -159,6 +163,7 @@ object OfflineAi {
         }
         val candidates = (mentions + followUps).sorted()
         val best = candidates.maxByOrNull { score(it) * 10_000 - it } ?: return null
+        if (topical != null && haveFact && score(best) < 3) return null
         val pick = if (score(best) > 0 || best in mentions) best else mentions.first()
         val sentence = sentences[pick].text
         if (pick !in mentions) return TextKit.clamp(sentence, EVIDENCE_MAX)

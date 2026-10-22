@@ -394,6 +394,29 @@ class MainActivitySmokeTest {
         assertEquals(Mood.CURIOUS, lumo.mood)
     }
 
+    @Test
+    fun aFinderWhosePhoneDropsOffStaysOnTheBoard() {
+        launch()
+        // On the emulator a phone that left mid-quest vanished from the scoreboard and its find lost its name.
+        val engine = field<QuestEngine>("quests")
+        engine.start(tv.wander.quest.QuestCatalog.byId("speed-safari")!!)
+        val ava = Player("p7", "Ava", 2)
+        val before: List<Player> = call("questPlayers", Player::class.java to ava)
+        assertTrue(engine.apply(ava.id, Verdict(true, "Cheetah", "Yes!", "fast", fromAi = false), before) is QuestOutcome.Accepted)
+        val hubListener = field<PhoneHub.Listener>("hubListener")
+        hubListener.onPlayerLeft(ava)
+        Snap.settle(100)
+        val after: List<Player> = call("questPlayers", Player::class.java to null)
+        val kept = after.firstOrNull { it.id == ava.id }
+        assertNotNull("Ava's find keeps her on the board", kept)
+        assertEquals(100, kept!!.score)
+        assertEquals("Ava", call<String>("nameOf", String::class.java to ava.id))
+        // Back on the couch: no ghost copy of her stays behind.
+        hubListener.onPlayerJoined(ava)
+        Snap.settle(100)
+        assertTrue(field<Map<String, Player>>("awayPlayers").isEmpty())
+    }
+
     private fun <T> assertNotNullAndGet(value: T?): T {
         assertNotNull(value)
         return value!!

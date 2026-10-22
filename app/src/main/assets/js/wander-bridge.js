@@ -423,9 +423,23 @@
   // ---------------------------------------------------------------- readable text
 
   var BLOCKS = 'p,li,h1,h2,h3,h4,h5,h6,blockquote,pre,td,th,dd,dt,figcaption,caption,div,section,article,tr';
+  /**
+   * Wikipedia's one-line description under the title ("species of mammal"). It has no full stop, so once the
+   * TV flattens the text it glues onto the first sentence ("species of mammal A cheetah is...").
+   */
+  var TAGLINES = '.tagline,.shortdescription,#siteSub';
   var JUNK = 'script,style,noscript,template,iframe,svg,canvas,form,button,input,select,textarea,nav,header,' +
     'footer,aside,[role=navigation],[role=banner],[role=contentinfo],[role=complementary],[aria-hidden=true],' +
-    '[hidden],.mw-editsection,.navbox,.reflist,.references,.reference,#toc,.toc,.sidebar,.ad,.ads,.advert';
+    '[hidden],.mw-editsection,.navbox,.reflist,.references,.reference,#toc,.toc,.sidebar,.ad,.ads,.advert,' + TAGLINES;
+
+  /** Removes every node matching [selector] from a disposable copy. */
+  function strip(root, selector) {
+    var found = root.querySelectorAll(selector);
+    for (var i = found.length - 1; i >= 0; i--) {
+      if (found[i].parentNode) found[i].parentNode.removeChild(found[i]);
+    }
+    return root;
+  }
 
   function meta(names) {
     for (var i = 0; i < names.length; i++) {
@@ -503,7 +517,8 @@
     var Reader = window.__wanderReadability; // the TV injects Readability.js wrapped, so it never touches page globals
     if (typeof Reader === 'function') {
       try {
-        art = new Reader(document.cloneNode(true), { charThreshold: 400 }).parse();
+        // Readability strips classNames from its output, so the taglines go before it reads the copy.
+        art = new Reader(strip(document.cloneNode(true), TAGLINES), { charThreshold: 400 }).parse();
       } catch (e) {
         art = null;
       }

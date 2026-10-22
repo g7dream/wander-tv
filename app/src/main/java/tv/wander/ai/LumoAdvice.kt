@@ -68,9 +68,17 @@ internal object LumoAdvice {
 
     private fun times(n: Int): String = if (n > 2) "$n times" else "again"
 
+    /** The variant each reason used last: the session numbers alone can land on the same one twice in a row. */
+    private val lastVariant = IntArray(DriftReason.values().size) { -1 }
+
     fun advise(stats: SessionStats, signal: DriftSignal): CompanionAdvice {
         val (mood, variants) = VARIANTS[signal.reason] ?: VARIANTS.getValue(DriftReason.RAPID_HOPPING)
-        val index = Math.floorMod(stats.pagesTotal + stats.sessionMinutes + stats.localHour, variants.size)
+        var index = Math.floorMod(stats.pagesTotal + stats.sessionMinutes + stats.localHour, variants.size)
+        synchronized(lastVariant) {
+            val slot = signal.reason.ordinal
+            if (variants.size > 1 && index == lastVariant[slot]) index = (index + 1) % variants.size
+            lastVariant[slot] = index
+        }
         val v = variants[index]
         val line = TextKit.clamp(v.line(stats), 120)
         return CompanionAdvice(mood, line, v.suggestion)

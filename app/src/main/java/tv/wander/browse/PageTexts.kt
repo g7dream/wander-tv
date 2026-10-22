@@ -78,6 +78,8 @@ internal object PageTexts {
         return out
     }
 
+    /** Letters and digits in a trailing site name the title strip may drop. */
+    private const val MAX_SITE_TAIL = 64
     private val TITLE_SEPARATORS = listOf(" - ", " | ", " — ", " – ", " · ", " • ", " :: ", " at ")
     private val GENERIC_HEADS = setOf("home", "homepage", "home page", "welcome", "index", "start", "main page")
 
@@ -96,7 +98,8 @@ internal object PageTexts {
             if (i <= 0) continue
             val head = t.substring(0, i).trim()
             val tail = t.substring(i + sep.length).lowercase().filter { it.isLetterOrDigit() }
-            if (head.length < 2 || head.lowercase() in GENERIC_HEADS || tail.isEmpty() || tail.length > 40) continue
+            // Long enough for "Simple English Wikipedia, the free encyclopedia"; it must still name the site.
+            if (head.length < 2 || head.lowercase() in GENERIC_HEADS || tail.isEmpty() || tail.length > MAX_SITE_TAIL) continue
             val names = tail == key || (tail.length >= 3 && key.contains(tail)) || (key.length >= 3 && tail.contains(key))
             if (names) return head
         }

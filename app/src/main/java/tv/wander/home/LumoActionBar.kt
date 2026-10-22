@@ -59,7 +59,8 @@ class LumoActionBar(context: Context, private val listener: Listener) : FrameLay
         panel.clipChildren = false
         panel.clipToPadding = false
         prompt.setPadding(dpi(14f), dpi(6f), dpi(14f), dpi(6f))
-        prompt.background = Ui.roundRect(context, Palette.withAlpha(Palette.INK, 0.85f), 14f, Palette.HAIRLINE, 1f)
+        // Opaque: over a white page any see-through lets the text underneath ghost through the bar.
+        prompt.background = Ui.roundRect(context, Palette.INK, 14f, Palette.HAIRLINE, 1f)
         panel.addView(prompt, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dpi(10f) })
 
         bar.orientation = LinearLayout.HORIZONTAL
@@ -67,7 +68,7 @@ class LumoActionBar(context: Context, private val listener: Listener) : FrameLay
         bar.clipChildren = false
         bar.clipToPadding = false
         bar.setPadding(dpi(10f), dpi(10f), dpi(10f), dpi(10f))
-        bar.background = Ui.roundRect(context, Palette.withAlpha(Palette.NIGHT, 0.96f), 34f, Palette.withAlpha(Palette.LAMP, 0.35f), 1.5f)
+        bar.background = Ui.roundRect(context, Palette.NIGHT, 34f, Palette.withAlpha(Palette.LAMP, 0.35f), 1.5f)
         panel.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // Centered in the strip left of the small Lumo in the bottom-right corner, so the two never touch.

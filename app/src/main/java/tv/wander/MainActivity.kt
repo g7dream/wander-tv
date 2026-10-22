@@ -118,6 +118,8 @@ class MainActivity : Activity() {
     private var rescueSignal: DriftSignal? = null
     private var rescueOptions: List<RescueOption> = emptyList()
     private var remotePlayer: Player? = null
+    /** Phones that dropped off (a locked screen, a Wi-Fi blip): their quest finds keep their name and points. */
+    private val awayPlayers = LinkedHashMap<String, Player>()
     private val trail = ArrayDeque<String>()
     private var lumoPresent = true
 
@@ -1286,13 +1288,17 @@ class MainActivity : Activity() {
 
     private fun questPlayers(extra: Player? = null): List<Player> {
         val list = hub?.players.orEmpty().toMutableList()
+        if (awayPlayers.isNotEmpty()) {
+            val finders = quests.found.mapTo(HashSet()) { it.playerId }
+            for (p in awayPlayers.values) if (p.id in finders && list.none { it.id == p.id }) list += p
+        }
         remotePlayer?.let { rp -> if ((rp.score > 0 || rp === extra) && list.none { it.id == rp.id }) list += rp }
         if (extra != null && list.none { it.id == extra.id }) list += extra
         return list
     }
 
     private fun nameOf(playerId: String): String =
-        hub?.player(playerId)?.name ?: remotePlayer?.takeIf { it.id == playerId }?.name ?: "Someone"
+        hub?.player(playerId)?.name ?: awayPlayers[playerId]?.name ?: remotePlayer?.takeIf { it.id == playerId }?.name ?: "Someone"
 
     // ---- rescue -----------------------------------------------------------------------------------
 
@@ -1704,11 +1710,15 @@ class MainActivity : Activity() {
             if (resumed) Sfx.join()
             lumo.say(Lines.playerJoined(player.name), Mood.HAPPY, 4000)
             lumo.celebrate(Palette.player(player.colorIndex))
+            awayPlayers.remove(player.id)
             playersChanged()
         }
 
         override fun onPlayerLeft(player: Player) = guard("hub.left") {
             if (!alive) return@guard
+            awayPlayers.remove(player.id) // re-inserted last, so the oldest departures go first
+            awayPlayers[player.id] = player
+            while (awayPlayers.size > AWAY_MAX) awayPlayers.remove(awayPlayers.keys.first())
             playersChanged()
         }
 
@@ -1726,6 +1736,7 @@ class MainActivity : Activity() {
         const val TAG = "Wander"
         const val LUMO_PICK = "lumo"
         const val COUCH_ID = "couch"
+        const val AWAY_MAX = 16
         const val STATE_DEBOUNCE_MS = 50L
         const val HEALTH_EVERY_MS = 120_000L
         const val LAN_EVERY_MS = 30_000L
