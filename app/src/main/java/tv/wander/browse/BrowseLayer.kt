@@ -493,6 +493,9 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
         s.javaScriptEnabled = true
         s.domStorageEnabled = true
         s.mediaPlaybackRequiresUserGesture = false
+        // By default WebView focuses the page's first element whenever it gains Android focus (taps do
+        // that), which scrolls a scrolled-down page back to the top before the tap lands.
+        s.setNeedInitialFocus(false)
         s.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         s.textZoom = textZoom
         s.useWideViewPort = true
