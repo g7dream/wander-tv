@@ -33,10 +33,11 @@ Wander rebuilds the browser around the couch: everyone can drive, long pages bec
 | 😴 **Drift rescue that adapts** | Rapid page-hopping, endless scrolling, site loops and late nights make Lumo sleepy. It offers a quest or a curious detour. Every "we're fine" makes it more patient with your household. |
 | 🔊 **Read aloud** | Lumo reads cards out loud with Amazon Polly, and falls back to the TV's own text-to-speech. |
 | 🌙 **Works offline** | No backend or no network? Cards, quest checks and Lumo's lines all have on-device fallbacks. |
+| 🔒 **Family SafeSearch, everywhere** | Strict SafeSearch is enforced on every navigation — DuckDuckGo, Google and Bing — so search links on any page, form submits and direct visits are all covered, not just searches typed at home. |
 
 ## Demo video
 
-**[FILL IN: YouTube link]** (2:50, narrated by Lumo, recorded on a real Fire TV). The script, voiceover lines and the capture/edit pipeline are in [video/](video/SCRIPT.md).
+**[FILL IN: YouTube link]** (about 2:50, narrated by Lumo). The script, voiceover lines and the capture/edit pipeline are in [video/](video/SCRIPT.md).
 
 ## Screenshots
 
@@ -187,7 +188,7 @@ python -m pytest backend/tests              # Lambda handlers with stubbed AWS c
 
 - **Screenshot tests.** Robolectric's native graphics mode renders the real TV views to 1920x1080 PNGs in `app/build/snaps/` (see `app/src/test/java/tv/wander/testing/Snap.kt`), so every screen can be checked without a device.
 - **Phone harness.** `runPhoneHarness` serves the phone page with a simulated TV, so the controller can be tested in a desktop browser or on a phone pointed at your computer's IP.
-- WebView doesn't render under Robolectric, so browse logic is tested as plain JVM code, and the real thing on a Fire TV.
+- WebView doesn't render under Robolectric, so browse logic is tested as plain JVM code, and the real thing end to end on an Android TV emulator (Android 11, the base of Fire OS 8).
 
 ## Project structure
 
@@ -225,7 +226,21 @@ Wander was built with an agentic workflow in [Claude Code](https://www.anthropic
 1. A human-written product plan ([PLAN.md](PLAN.md)) became a build contract ([SPEC.md](SPEC.md)): repo layout, ownership per package, frozen shared types and design tokens, the phone protocol and the backend API.
 2. Parallel builder agents worked in separate git worktrees, one per area (TV shell, browser, companion, cards and quests, phone + couchlink, AWS backend, docs), each only touching the files it owned.
 3. Because the build machine had no Fire TV emulator, agents checked their own screens through Robolectric screenshots at 1920x1080 and tested the phone page with the desktop harness.
-4. A human integrated the branches, tested from the couch on a real Fire TV, and fed back what felt wrong ("focus ring too thin", "cursor too slow").
+4. Review agents went seam by seam through the places where areas meet, fixers closed what they found, and an emulator tester drove every demo flow end to end on an Android TV emulator (Android 11, the base of Fire OS 8), fixing what only a real WebView and real pages showed.
+
+## Built with Kiro Crew
+
+One feature was built with [Kiro Crew](https://kiro.dev), AWS's multi-agent workspace on the Kiro IDE:
+**Family SafeSearch everywhere** (strict SafeSearch forced on DuckDuckGo, Google and Bing for every
+navigation, not just searches typed at home).
+
+- Kiro worked from the project's steering files ([.kiro/steering](.kiro/steering): product, tech and
+  structure) and a written brief ([docs/kiro/TASK-family-safesearch.md](docs/kiro/TASK-family-safesearch.md)).
+- It added `SearchUrls.enforceSearch`, hooked it into every main-frame navigation in `BrowseLayer`, and wrote
+  20 unit tests; the full test suite and the build stayed green.
+- The change was then reviewed (one edge case hardened: a `?` inside a URL fragment) and verified on the
+  emulator: `duckduckgo.com` loads with `kp=1`, Google `safe=off` becomes `safe=active`, Bing `adlt=off`
+  becomes `adlt=strict`.
 
 ## Credits and licenses
 

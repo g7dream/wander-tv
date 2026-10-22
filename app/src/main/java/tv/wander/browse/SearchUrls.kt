@@ -15,6 +15,76 @@ object SearchUrls {
     private val LABEL = Regex("^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 
     /**
+     * Returns [url] with strict SafeSearch enforced for the search engines that support it, or null
+     * when the URL is not a search URL or already has the right value (so the caller can skip loading
+     * it and avoid a redirect loop).
+     *
+     * Covered engines:
+     *  - DuckDuckGo (duckduckgo.com, html.duckduckgo.com, lite.duckduckgo.com): kp=1
+     *  - Google web search (www.google.<tld>/search or www.google.<tld>/ with q=): safe=active
+     *  - Bing (www.bing.com/search): adlt=strict
+     *
+     * All other parameters, the path and the fragment are preserved. Non-search URLs and malformed
+     * input are returned as null (no change needed).
+     */
+    fun enforceSearch(url: String): String? {
+        // Bail out fast on obvious non-http input.
+        if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) return null
+        return try {
+            val hashMark = url.indexOf('#')
+            // A '?' after the '#' belongs to the fragment, not the query.
+            val qMark = url.indexOf('?').let { if (hashMark in 0 until it) -1 else it }
+            // Split: base (scheme+authority+path), query string, fragment.
+            val base = if (qMark >= 0) url.substring(0, qMark) else if (hashMark >= 0) url.substring(0, hashMark) else url
+            val fragment = if (hashMark >= 0) url.substring(hashMark) else ""
+            val rawQuery = when {
+                qMark >= 0 && hashMark >= 0 -> url.substring(qMark + 1, hashMark)
+                qMark >= 0 -> url.substring(qMark + 1)
+                else -> ""
+            }
+
+            val host = hostOf(base.substringAfter("://"))
+            val path = base.substringAfter("://").let { it.substring(it.indexOf('/').takeIf { i -> i >= 0 } ?: it.length) }.lowercase()
+
+            when {
+                isDuckDuckGo(host) -> rewrite(url, base, rawQuery, fragment, "kp", "1")
+                isGoogleSearch(host, path, rawQuery) -> rewrite(url, base, rawQuery, fragment, "safe", "active")
+                isBingSearch(host, path) -> rewrite(url, base, rawQuery, fragment, "adlt", "strict")
+                else -> null
+            }
+        } catch (t: Throwable) {
+            null // malformed input: leave it alone
+        }
+    }
+
+    private fun isDuckDuckGo(host: String): Boolean =
+        host == "duckduckgo.com" || host == "html.duckduckgo.com" || host == "lite.duckduckgo.com"
+
+    private fun isGoogleSearch(host: String, path: String, rawQuery: String): Boolean {
+        if (!host.startsWith("www.google.")) return false
+        // Either /search or / with a q= parameter (the plain home search form).
+        return path == "/search" || (path == "/" || path.isEmpty()) && rawQuery.contains(Regex("(?:^|&)q="))
+    }
+
+    private fun isBingSearch(host: String, path: String): Boolean =
+        host == "www.bing.com" && path == "/search"
+
+    /**
+     * Returns [url] with [param] set to [value], or null when [param] already equals [value]
+     * (no change needed). Existing [param] entries are replaced; all others are kept in order.
+     */
+    private fun rewrite(url: String, base: String, rawQuery: String, fragment: String, param: String, value: String): String? {
+        val pairs = if (rawQuery.isEmpty()) emptyList() else rawQuery.split('&')
+        // Check if the param is already at the right value.
+        val current = pairs.firstOrNull { it == "$param=$value" || it.startsWith("$param=") }
+        if (current == "$param=$value") return null // already strict: no redirect loop
+
+        val kept = pairs.filter { !it.startsWith("$param=") }
+        val rebuilt = (kept + "$param=$value").joinToString("&")
+        return "$base?$rebuilt$fragment"
+    }
+
+    /**
      * The URL to load for [input]. Explicit http(s) URLs pass through; bare domains get https://
      * (local addresses such as localhost or 192.168.1.20:8080 get http://, since LAN devices rarely
      * speak TLS). Everything else, including other schemes like javascript: or file:, becomes a

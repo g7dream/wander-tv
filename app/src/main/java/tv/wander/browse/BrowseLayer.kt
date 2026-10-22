@@ -182,7 +182,8 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
     fun open(input: String, by: Player? = null) = onMain {
         if (destroyed) return@onMain
         setDriver(by)
-        val target = SearchUrls.resolve(input)
+        val resolved = SearchUrls.resolve(input)
+        val target = SearchUrls.enforceSearch(resolved) ?: resolved
         val wv = ensureWebView() ?: return@onMain
         offlineFor = null
         lastRequestedUrl = target
@@ -763,6 +764,16 @@ class BrowseLayer(context: Context, private val listener: Listener) : FrameLayou
         when (scheme) {
             "http", "https" -> {
                 if (mainFrame) {
+                    // Enforce strict SafeSearch before the page loads; only redirect when something
+                    // actually changes, so there is no loop on URLs that are already strict.
+                    val safe = SearchUrls.enforceSearch(url)
+                    if (safe != null) {
+                        offlineFor = null
+                        pendingNavUrl = safe
+                        lastRequestedUrl = safe
+                        view.loadUrl(safe)
+                        return true
+                    }
                     offlineFor = null
                     pendingNavUrl = url
                     lastRequestedUrl = url

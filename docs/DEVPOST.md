@@ -114,12 +114,12 @@ Households that share one TV: families with kids who are curious about everythin
 
 ## Built with
 
-kotlin, android, fire-tv, fire-os, android-emulator, webview, websocket, html5, css3, javascript, python, aws-lambda, amazon-api-gateway, amazon-bedrock, amazon-bedrock-guardrails, amazon-dynamodb, amazon-polly, aws-sam, aws-cloudformation, amazon-cloudwatch, amazon-s3, aws-iam, zxing, mozilla-readability, robolectric, junit, claude-code, elevenlabs, ffmpeg
+kotlin, android, fire-tv, fire-os, android-emulator, webview, websocket, html5, css3, javascript, python, aws-lambda, amazon-api-gateway, amazon-bedrock, amazon-bedrock-guardrails, amazon-dynamodb, amazon-polly, aws-sam, aws-cloudformation, amazon-cloudwatch, amazon-s3, aws-iam, kiro, kiro-crew, zxing, mozilla-readability, robolectric, junit, claude-code, elevenlabs, ffmpeg
 
 ## Tracks and challenges
 
 - **Track:** Fire TV
-- **Mini challenge:** AWS Builder (multi-service pipeline: API Gateway, Lambda, Bedrock + Guardrails, DynamoDB, Polly, CloudFormation, CloudWatch; plus an agentic development workflow with Claude Code)
+- **Mini challenge:** AWS Builder. Kiro Crew was used during the hackathon to build one feature (Family SafeSearch everywhere, see "Built with Kiro Crew" in the README), and the app has a multi-service AWS pipeline (API Gateway, Lambda, Bedrock + Guardrails, DynamoDB, Polly, CloudFormation, CloudWatch), built and tested locally; its live deploy was blocked by the new account's restrictions (see Status).
 - **Optional, only if the rules allow a second category:** Open Source. couchlink is a standalone, zero-dependency Kotlin/JVM HTTP + WebSocket server (`couchlink/`) that any TV app can use to let phones on the same Wi-Fi act as controllers, MIT licensed. [FILL IN: delete this line if not entering]
 
 ## Links
@@ -266,6 +266,14 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** Contract-first parallel work: frozen shared types and design tokens plus strict file ownership let several agents build at the same time. The screenshot loop (Robolectric native graphics at 1920x1080, working on Windows) let agents see and fix TV layouts with no device attached.
 - **What needs work:** Renders can't show how real pages look under the overlays, so two bugs waited for the emulator. On Windows, removing git worktrees hit "Filename too long". [FILL IN: where agents needed the most human correction, e.g. couch feel, timing, copy]
 - **Onboarding experience:** [FILL IN: your own experience getting started]
+- **Would we build with it again?** [FILL IN: yes or no, and why]
+
+### Kiro and Kiro Crew (agentic development)
+
+- **What we used it for:** Building one feature with Kiro Crew on October 22: Family SafeSearch everywhere. We gave it steering files (`.kiro/steering`: product, tech, structure) and a written brief; it read the code, added `SearchUrls.enforceSearch`, hooked it into every main-frame navigation in `BrowseLayer`, wrote 20 unit tests and ran the Gradle tests and build (4 files, 238 lines added). Its agents ran on Kiro's `auto` model setting. We reviewed the diff, hardened one edge case (a `?` inside a URL fragment) and verified the feature on the Android TV emulator.
+- **What worked well:** It respected the steering constraints (no new dependencies, minSdk 25, the project's code style), found the right hook in a 1,000-line class on its own, and wrote thorough tests for each search engine, existing values and malformed input. The approval modes (Normal, Reads, Trust for one chat) made it easy to stay in control and then speed up for a scoped task.
+- **What needs work:** The first-run import screen pre-selected every setup it found from other AI tools on the machine (50 from Codex, 97 from Claude Code, 9 from Gemini CLI / Antigravity), including schedules; for a single project, opting in would be safer than opting out. The workspace picker started in Kiro's own folder rather than a project. We asked for a spec first, but Crew went straight to implementation and did not write `.kiro/specs/`. [FILL IN: anything else that slowed you down]
+- **Onboarding experience:** [FILL IN: time from install and sign-in to the first change, and credits used out of the free tier's 50]
 - **Would we build with it again?** [FILL IN: yes or no, and why]
 
 ### ElevenLabs (demo video voiceover)

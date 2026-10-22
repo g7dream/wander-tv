@@ -2,6 +2,8 @@ package tv.wander.browse
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -87,5 +89,164 @@ class SearchUrlsTest {
             assertTrue(u, u.startsWith("https://duckduckgo.com/?q="))
             assertTrue(u, u.endsWith("&kp=1&kae=d"))
         }
+    }
+
+    // ---- enforceSearch: DuckDuckGo ----
+
+    @Test
+    fun ddgAlreadyStrictReturnsNull() {
+        // kp=1 already set → no redirect loop
+        assertNull(SearchUrls.enforceSearch("https://duckduckgo.com/?q=cats&kp=1&kae=d"))
+        assertNull(SearchUrls.enforceSearch("https://html.duckduckgo.com/?q=dogs&kp=1"))
+        assertNull(SearchUrls.enforceSearch("https://lite.duckduckgo.com/?q=birds&kp=1"))
+    }
+
+    @Test
+    fun ddgMissingKpGetsEnforced() {
+        val url = "https://duckduckgo.com/?q=cats"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("kp=1"))
+        assertFalse(result, result.contains("kp=-"))
+    }
+
+    @Test
+    fun ddgModerateKpIsReplaced() {
+        // kp=-1 (moderate) replaced with kp=1
+        val url = "https://duckduckgo.com/?q=cats&kp=-1"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("kp=1"))
+        assertFalse(result, result.contains("kp=-1"))
+    }
+
+    @Test
+    fun ddgOffKpIsReplaced() {
+        // kp=-2 (off) replaced with kp=1
+        val url = "https://html.duckduckgo.com/?q=leopard&kp=-2&kae=d"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("kp=1"))
+        assertFalse(result, result.contains("kp=-2"))
+        // Other params kept
+        assertTrue(result!!, result.contains("kae=d"))
+        assertTrue(result!!, result.contains("q=leopard"))
+    }
+
+    @Test
+    fun ddgDirectHomepageGetsEnforced() {
+        // Opening duckduckgo.com directly (no query params) still gets kp=1
+        val result = SearchUrls.enforceSearch("https://duckduckgo.com/")
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("kp=1"))
+    }
+
+    // ---- enforceSearch: Google ----
+
+    @Test
+    fun googleAlreadyStrictReturnsNull() {
+        assertNull(SearchUrls.enforceSearch("https://www.google.com/search?q=cats&safe=active"))
+        assertNull(SearchUrls.enforceSearch("https://www.google.co.uk/search?q=dogs&safe=active"))
+    }
+
+    @Test
+    fun googleMissingSafeGetsEnforced() {
+        val url = "https://www.google.com/search?q=cats"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("safe=active"))
+        assertTrue(result!!, result.contains("q=cats"))
+    }
+
+    @Test
+    fun googleSafeOffIsReplaced() {
+        val url = "https://www.google.com/search?q=leopard&safe=off"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("safe=active"))
+        assertFalse(result, result.contains("safe=off"))
+        assertTrue(result!!, result.contains("q=leopard"))
+    }
+
+    @Test
+    fun googleSafeImagesIsReplaced() {
+        val url = "https://www.google.co.uk/search?q=cheetah&safe=images"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("safe=active"))
+        assertFalse(result, result.contains("safe=images"))
+    }
+
+    @Test
+    fun googleHomepageWithQueryGetsEnforced() {
+        // www.google.com/?q=cats (search from home without /search path)
+        val url = "https://www.google.com/?q=cats"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("safe=active"))
+    }
+
+    @Test
+    fun googleHomepageWithoutQueryIsIgnored() {
+        // Plain google.com home with no q= is not a search page
+        assertNull(SearchUrls.enforceSearch("https://www.google.com/"))
+    }
+
+    // ---- enforceSearch: Bing ----
+
+    @Test
+    fun bingAlreadyStrictReturnsNull() {
+        assertNull(SearchUrls.enforceSearch("https://www.bing.com/search?q=cats&adlt=strict"))
+    }
+
+    @Test
+    fun bingMissingAdltGetsEnforced() {
+        val url = "https://www.bing.com/search?q=foxes"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("adlt=strict"))
+        assertTrue(result!!, result.contains("q=foxes"))
+    }
+
+    @Test
+    fun bingModeratAdltIsReplaced() {
+        val url = "https://www.bing.com/search?q=birds&adlt=moderate"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.contains("adlt=strict"))
+        assertFalse(result, result.contains("adlt=moderate"))
+        assertTrue(result!!, result.contains("q=birds"))
+    }
+
+    // ---- enforceSearch: non-search URLs and malformed input ----
+
+    @Test
+    fun nonSearchUrlsReturnNull() {
+        assertNull(SearchUrls.enforceSearch("https://en.wikipedia.org/wiki/Cheetah"))
+        assertNull(SearchUrls.enforceSearch("https://www.nasa.gov/"))
+        assertNull(SearchUrls.enforceSearch("https://www.bbc.co.uk/news"))
+        assertNull(SearchUrls.enforceSearch("http://192.168.1.20:8080"))
+    }
+
+    @Test
+    fun malformedInputReturnsNull() {
+        assertNull(SearchUrls.enforceSearch(""))
+        assertNull(SearchUrls.enforceSearch("not a url"))
+        assertNull(SearchUrls.enforceSearch("javascript:alert(1)"))
+        assertNull(SearchUrls.enforceSearch("file:///etc/hosts"))
+    }
+
+    @Test
+    fun fragmentIsPreserved() {
+        val url = "https://duckduckgo.com/?q=cats&kp=-1#bang"
+        val result = SearchUrls.enforceSearch(url)
+        assertNotNull(result)
+        assertTrue(result!!, result.endsWith("#bang"))
+        assertTrue(result!!, result.contains("kp=1"))
+    }
+
+    @Test
+    fun questionMarkInsideFragmentIsNotTheQuery() {
+        assertEquals("https://duckduckgo.com/?kp=1#about?x", SearchUrls.enforceSearch("https://duckduckgo.com/#about?x"))
     }
 }
