@@ -350,7 +350,7 @@
   <text class="s" x="1412" y="724" font-size="15">logs and latency</text>
   <text class="s" x="1412" y="743" font-size="15">per route</text>
 
-  <text class="b" x="1338" y="786" font-size="15" fill="#B9AECC" text-anchor="middle">Deployed with AWS SAM / CloudFormation</text>
+  <text class="b" x="1338" y="786" font-size="15" fill="#B9AECC" text-anchor="middle">Infrastructure as code: AWS SAM / CloudFormation</text>
 
   <!-- footer -->
   <text class="b" x="40" y="866" font-size="17" fill="#B9AECC">No backend or no network? Cards, quest checks and Lumo's lines fall back on-device.</text>

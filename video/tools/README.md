@@ -18,6 +18,7 @@ node video/tools/record.mjs s06-drift                        # TV only, demo mod
 node video/tools/composite.mjs s03-join                      # side-by-side clip, also s04-cards, s05-quest
 node video/tools/sheet.mjs video/raw/s03-join-comp.mp4       # contact sheet, one frame every 2 s
 node video/tools/logo-blur.mjs s05-quest                     # EDL blur boxes for the site's logos
+node video/tools/read-aloud.mjs                              # the TV's read-aloud voice for s04, with sound
 node video/tools/emulator-edl.mjs                            # video/edl.json for the emulator cut
 ```
 
@@ -32,6 +33,7 @@ Set `CAPTURE_TMP` to a scratch folder for the Chrome profiles (default: the OS t
 | `composite.mjs` | 1920x1080 / 30 fps side by side: lamp-lit background, TV 1440x810 with a hairline border, phone 372x826 with rounded corners, labels in Atkinson Hyperlegible Bold. Writes `<scene>-comp.mp4` and `<scene>-comp.times.txt` (every logged action in clip seconds). `--tv-shift` / `--phone-shift` nudge the sync. |
 | `sheet.mjs` | Contact sheet with time stamps, for checking a take by eye. |
 | `logo-blur.mjs` | Finds when the Wikipedia wordmark (page header) and the site favicon (Wander's title strip) are on screen and writes `<scene>.blur.json` with EDL blur boxes for the plain TV clip and for the composite. |
+| `read-aloud.mjs` | The sound the recordings lack: opens the Cheetah page in a clean on-device Wander, makes the cards, flips to card 3 and sends Read aloud (`{t:'read'}`, what the phone's button sends), while the emulator's own recorder (console `screenrecord start`, which does capture the emulator's sound output) records. The emulator's media volume (3 of 15, about -60 dB in the recording) is raised to 12 for the take and put back after. Writes `video/raw/s04-read.webm`, `s04-read.wav` and `s04-read.json` (where the voice starts and ends, and the latency from the command to the first sound). |
 | `emulator-edl.mjs` | Writes `video/edl.json` for the emulator cut: the cut points of every scene (s04-s06 are each cut into several entries), VO placements set from the capture timestamps, captions placed off the app's own UI, the app's own UI sounds (`sfx`) at the moments the app played them, and the `<scene>.blur.json` windows moved into each entry's time. Re-run it after re-recording a scene and updating its cut points. |
 
 ## How the pieces line up
@@ -67,9 +69,16 @@ Set `CAPTURE_TMP` to a scratch folder for the Chrome profiles (default: the OS t
 * **Starting a quest from Home, then closing the intro with OK or Back** opens the quest's starter web search
   (a search engine's results page, with its logo). In s05 Maya types her first answer while the intro is up and
   her Go closes it, so no search page is shown.
-* **Read aloud** speaks with the emulator's own text-to-speech (Google TTS); `screenrecord` records no audio.
+* **Read aloud** speaks with the emulator's own text-to-speech (Google TTS); `screenrecord` records no audio, so
+  `read-aloud.mjs` records it separately with the emulator's own recorder, and the cut lays it in at Maya's tap.
   The first use after a cold emulator downloads voice data and shows "Lumo's voice isn't working on this TV
   right now" until it finishes.
+* **A dark flash at a cut.** The composites start before the TV recording does (`TV in 0.43 s` in
+  `<scene>-comp.times.txt`): an entry that starts at composite time 0 shows an empty TV for a frame or two. Start
+  entries after that (s04a starts at 0.1).
+* **Logos behind Wander's overlays.** The rescue overlay's scrim still shows the page's wordmark and the title
+  strip's favicon faintly, and `logo-blur.mjs` does not see them there: `emulator-edl.mjs` adds fixed boxes for
+  that window and ends the full-size ones when the overlay fades in.
 * **adb on this machine** crashes every few minutes (a fail-fast in `adb.exe`, typically when another adb
   server, e.g. a Unity editor's, connects to the emulator). That is why the phone port uses the emulator
   console's `redir add tcp:8098:8080` instead of `adb forward`, `screenrecord` and `monkey` run detached, and

@@ -442,7 +442,8 @@ try {
                 if ([bool](Get-Prop $x "optional" $false) -or $AllowMissing) { Add-Warning "sound $f missing, skipped"; continue }
                 [void]$missing.Add("sound  $path"); continue
             }
-            [void]$placements.Add([ordered]@{ Kind = "sfx"; Id = [System.IO.Path]::GetFileNameWithoutExtension($path); Path = $path; At = $seg.Start + [double](Get-Prop $x "at" 0); Volume = [double](Get-Prop $x "volume" 1.0); Scene = $seg; In = 0.0; Out = $null; Text = $null })
+            # optional "in"/"out" (seconds in the sound file): play only that part, e.g. the voice in a longer capture
+            [void]$placements.Add([ordered]@{ Kind = "sfx"; Id = [System.IO.Path]::GetFileNameWithoutExtension($path); Path = $path; At = $seg.Start + [double](Get-Prop $x "at" 0); Volume = [double](Get-Prop $x "volume" 1.0); Scene = $seg; In = [double](Get-Prop $x "in" 0); Out = (Get-Prop $x "out" $null); Text = $null })
         }
     }
 
@@ -569,17 +570,12 @@ try {
         }
 
         # badges and captions
-        # A badge stays on screen across a cut when the neighbouring segment carries the same badge, so a scene
-        # cut into several EDL entries does not make it blink; it only fades where it starts or ends.
+        # A badge (e.g. where the footage comes from) is on every frame of its segment, with no fade: a label that
+        # says what a shot is must be readable from the shot's first frame to its last, and across a cut into the
+        # next entry of the same scene it simply stays.
         $badge = Get-Prop $d "badge" $null
         if ($badge) {
-            $prevBadge = $null; $nextBadge = $null
-            if ($idx -ge 2) { $prevBadge = Get-Prop $segs[$idx - 2].Def "badge" $null }
-            if ($idx -lt $segs.Count) { $nextBadge = Get-Prop $segs[$idx].Def "badge" $null }
-            $joinPrev = ([string]$prevBadge -eq [string]$badge); $joinNext = ([string]$nextBadge -eq [string]$badge)
-            $bFrom = if ($joinPrev) { 0.0 } else { 0.3 }
-            $bTo = if ($joinNext) { $dur } else { $dur - 0.3 }
-            $label = Add-Pill $g $label ([string]$badge) 28 56 ([string](Get-Prop $d "badge_anchor" "top-left")) @(61, 220, 151) $bFrom $bTo $frames $fps $tmp (-not $joinPrev) (-not $joinNext) ([int](Get-Prop $d "badge_x" -1)) ([int](Get-Prop $d "badge_y" -1))
+            $label = Add-Pill $g $label ([string]$badge) 28 56 ([string](Get-Prop $d "badge_anchor" "top-left")) @(61, 220, 151) 0.0 $dur $frames $fps $tmp $false $false ([int](Get-Prop $d "badge_x" -1)) ([int](Get-Prop $d "badge_y" -1))
         }
         if ($seg.Speed -ne 1 -and $seg.Kind -ne "image") {
             # the speed pill sits top-right, on the badge's line when the scene moves the badge ("badge_y")

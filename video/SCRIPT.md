@@ -1,6 +1,6 @@
 # Wander TV demo video: "Lumo's Night In"
 
-**Runtime 2:46** (the edit script refuses anything over 2:58; judges may stop at 3:00) · English · 1920x1080, 30 fps
+**Runtime 2:45** (the edit script refuses anything over 2:58; judges may stop at 3:00) · English · 1920x1080, 30 fps
 **Narrator:** Lumo, in first person, the whole way through. 288 words of VO (about 2:04 of speech at 140 wpm), which leaves room for the app's own moments to land.
 
 ## Creative direction
@@ -10,95 +10,95 @@ The whole video is one family evening, told by the only member of the household 
 - **Voice.** Warm, curious, a little dry. A small creature with a big heart, not a cartoon and not a kid. Lumo is never preachy; the jokes are gentle and at Lumo's own expense ("I know circling when I see it").
 - **Look.** Our own UI carries everything: the lamp-lit aubergine screens, amber focus, the four player colors. The title and end cards (`docs/title-card.png`, `docs/end-card.png`) bookend it with the moth circling the lamp, then wandering off.
 - **People.** No faces needed. Hands, phones and the back of the couch, filmed over the shoulder. Two players: **Maya** (Berry, pink) and **Leo** (Sun, amber). A third phone (**Nana**, Mint) can join in scene 3 to show "up to 4".
-- **Sound.** Lumo's voice, the app's own sounds and Lumo's Polly reading voice. **No music.** If a scene feels empty, add a generated room-tone or soft sound effect, never a song. In the emulator cut, screenrecord captured no audio, so the app's own UI sounds (`app/src/main/res/raw`) are laid in as `sfx` entries at the moments the app played them, under the voice (the "App sounds" rows below).
+- **Sound.** Lumo's voice, the app's own sounds and Lumo's Polly reading voice. **No music.** If a scene feels empty, add a generated room-tone or soft sound effect, never a song. In the emulator cut, screenrecord captured no audio, so the app's own UI sounds (`app/src/main/res/raw`) are laid in as `sfx` entries at the moments the app played them, under the voice (the "App sounds" rows below). The read-aloud in scene 4 is the TV's own on-device voice (the recording has no AWS, so no Polly), recorded with sound in a separate pass on the same emulator, page and card (`video/tools/read-aloud.mjs`) and laid in at the tap that triggered it.
 - **Where the footage comes from.** No Fire TV device was available in time, so every TV shot is recorded on the Android TV emulator (Android 11, the base of Fire OS 8) running the real Fire OS APK, and every TV shot carries the label "Android TV emulator · Fire OS APK". Phones are the real phone page in Chrome phone emulation, shown side by side with the TV. The app runs in on-device mode in this recording (the AWS account was still locked), so the voiceover never claims AWS answered on screen. If a Fire TV becomes available, re-record the same scenes on it with `video/capture.ps1` and drop the label.
 
 ## Scenes
 
 Timecodes are for the final cut (`video/edl.json` produces exactly this timeline). VO ids match `video/vo/lines.json` and the files in `video/vo/<id>.mp3`.
 
-### Title + Scene 1: "Hi, I'm Lumo" (0:00-0:10)
+### Title + Scene 1: "Hi, I'm Lumo" (0:00-0:08.6)
 
 | | |
 |---|---|
-| **Timecode** | 0:00-0:03 title card, 0:03-0:10 Home |
-| **VO** (`s01`, at 0:00.5) | "Hi, I'm Lumo. I'm a moth. I know a thing or two about staring at bright screens." |
+| **Timecode** | 0:00-0:03 title card, 0:03-0:08.6 Home |
+| **VO** (`s01`, at 0:00.5) | "Hi, I'm Lumo. I'm a moth. I know a thing or two about staring at bright screens." ("I'm a moth." ends as the Home screen and Lumo appear) |
 | **On screen** | Title card: the moth silhouette circling the lamp, "Wander TV", tagline. Fades into the Home screen on the TV: Lumo hovering in the corner (curious mood), the four big tiles, the "join the couch" QR panel. Nobody has joined yet. |
 | **Capture** | `.\video\capture.ps1 -Ip <tv-ip> -Scene s01-home -Seconds 20` with the remote untouched, so Lumo idles, blinks and flutters. |
-| **Caption** | "Meet Lumo" · badge: "Android TV emulator · Fire OS APK" |
+| **Caption** | "Meet Lumo" · badge: "Android TV emulator · Fire OS APK" (the badge is on every frame of every TV shot, from the first to the last) |
 
-### Scene 2: The pain (0:10-0:25)
+### Scene 2: The pain (0:08.6-0:23.8)
 
 | | |
 |---|---|
-| **Timecode** | 0:10-0:25.2 |
-| **VO** (`s02`, at 0:10.3) | "This is my family's TV. It's the biggest screen in the house, and the hardest one to type on. Cheetah, one letter... at... a... time. Still going." |
+| **Timecode** | 0:08.6-0:23.8 |
+| **VO** (`s02`, at 0:08.9) | "This is my family's TV. It's the biggest screen in the house, and the hardest one to type on. Cheetah, one letter... at... a... time. Still going." |
 | **On screen** | The Search tile's text field and on-screen keyboard. Someone moves the D-pad letter by letter: C... H... E... E... Lumo watches, a bit concerned. Cut in a 3-4 s camera shot of a hand on the remote with the TV behind it. |
 | **Capture** | TV: `.\video\capture.ps1 -Scene s02-remote -Seconds 30`, typing slowly on purpose. Camera: film over the shoulder, phone camera at 30 fps with exposure locked on the TV. Frame the remote so only the D-pad shows (the shortcut buttons carry other companies' logos). Save the camera clip as `video/raw/s02-camera.mp4` and split scene 2 into two EDL entries if you use both. |
 | **Caption** | "Typing with a remote: one letter at a time" |
-| **App sounds** | 0:10.6 select (OK on the Search tile). The letters are typed on Gboard's on-screen keyboard, which plays no Wander sound. |
+| **App sounds** | 0:09.2 select (OK on the Search tile). The letters are typed on Gboard's on-screen keyboard, which plays no Wander sound. |
 
-### Scene 3: The fix (0:25-0:50)
+### Scene 3: The fix (0:23.8-0:48.9)
 
 | | |
 |---|---|
-| **Timecode** | 0:25.2-0:50.3, one continuous take: Maya joins 0:28.5, Leo joins 0:32.9, Maya types the address 0:36.4-0:40.6, the page opens 0:41.2, Leo's cursor turns amber 0:43.4 and the page scrolls 0:44.3-0:45.2, Maya's pink drag 0:47.6-0:49.6 |
-| **VO** (`s03`, at 0:27.1, split at its pauses: "Maya types." at 0:39.4 while she types, "Leo scrolls." at 0:44.2 on the scroll, "Nobody fights over the remote." at 0:47.6 on Maya's drag) | "So we fixed it. Scan the code, and your phone becomes a keyboard and a touchpad. No app to install. Everyone gets a color, and the cursor wears the color of whoever moved it last. Maya types. Leo scrolls. Nobody fights over the remote." |
+| **Timecode** | 0:23.8-0:48.9, one continuous take: Maya joins 0:27.1, Leo joins 0:31.5, Maya types the address 0:35.0-0:39.2, the page opens 0:39.8, Leo's cursor turns amber 0:42.0 and the page scrolls 0:42.9-0:43.8, Maya's pink drag 0:46.2-0:48.2 |
+| **VO** (`s03`, at 0:25.7, split at its pauses: "Maya types." at 0:38.3 while she types, "Leo scrolls." at 0:42.3 from his amber cursor into the scroll, "Nobody fights over the remote." at 0:46.1 on Maya's drag) | "So we fixed it. Scan the code, and your phone becomes a keyboard and a touchpad. No app to install. Everyone gets a color, and the cursor wears the color of whoever moved it last. Maya types. Leo scrolls. Nobody fights over the remote." |
 | **On screen** | A phone camera points at the QR on the TV, the controller page opens, Maya types her name and picks Berry. Lumo greets her by name; her chip appears on the TV. Leo joins as Sun (optional: Nana as Mint). Maya types `simple.wikipedia.org/wiki/Cheetah` and presses Go: the page opens on the TV. Leo drags on his touchpad: the cursor turns amber and the page scrolls. Maya drags on hers: the cursor turns pink. |
 | **Capture** | TV: `.\video\capture.ps1 -Scene s03-join -Seconds 90`. Camera: over-the-shoulder shot of the QR scan and the phone page in hand (`video/raw/s03-scan.mp4`, 5-6 s). Optional phone screen recording (`video/raw/s03-phone.mp4`); add `"crop"` in the EDL to cut away the phone's status bar and browser bar. |
 | **Caption** | "Scan the QR: your phone is the keyboard", then "Up to 4 phones, no app to install" |
-| **App sounds** | 0:28.5 join (Maya), 0:32.9 join (Leo). |
+| **App sounds** | 0:27.1 join (Maya), 0:31.5 join (Leo). |
 
-### Scene 4: Make it cards (0:50-1:06)
-
-| | |
-|---|---|
-| **Timecode** | 0:50.3-1:06.5: Maya taps Make it cards 0:52.4, the cards land 0:56.9, card 2 at 1:02.5, she taps Read aloud 1:04.2 |
-| **VO** (`s04`, at 0:51.3) | "Long pages are hard to read from the couch. Press Make it cards, and I turn the page into big field-guide cards the whole room can read. Want one read out loud? Just press OK." |
-| **On screen** | The long Cheetah article. Maya presses *Make it cards* on her phone (or Play/Pause on the remote). Lumo thinks for a moment, then 3-5 big field-guide cards appear. Leo flips right with his phone. Center on the remote (or Read aloud on a phone, 1:04.2 in the emulator cut): Lumo reads the card aloud, with the card's text on screen. |
-| **Capture** | `.\video\capture.ps1 -Scene s04-cards -Seconds 60`. screenrecord has no audio, so fetch the exact Polly audio of the card you read (see "Polly audio for scene 4" below) into `video/sfx/polly-card.mp3` and add it to `s04b` as an `sfx` entry (the emulator cut runs on-device and has none). |
-| **Caption** | "Make it cards: a long page becomes big cards", then "Press OK: Lumo reads the card aloud" (the emulator cut runs on-device: the TV speaks the card with the emulator's text-to-speech, which screenrecord does not capture, so the cut keeps this shot short) |
-| **App sounds** | 0:56.9 chime (cards land), 1:02.5 whoosh (card flip). Read aloud from the phone plays no UI sound. |
-
-### Scene 5: Family quest, Speed Safari (1:06-1:52)
+### Scene 4: Make it cards (0:48.9-1:11.1)
 
 | | |
 |---|---|
-| **Timecode** | 1:06.5-1:28.5 (part A: the intro, Peregrine falcon), 1:28.5-1:51.8 (part B: Cat, Cheetah, Golden eagle, the finale) |
-| **VO** | `s05a` at 1:06.7: "Now the fun part: family quests. Tonight it's Speed Safari. Find three animals faster than a car on the highway." <br> `s05b` at 1:18.3: "Everyone races on their own phone. Found one? Submit it, and I check the page. I don't just say yes. I show you the sentence that proves it." <br> `s05c` at 1:31.3: "A house cat? Nice try, Leo." <br> `s05d` at 1:43.0: "Golden eagle! That's three. Maya wins the safari." |
+| **Timecode** | 0:48.9-1:11.1: Maya taps Make it cards 0:50.8, the cards land 0:55.4, card 2 at 1:01.0, cut to card 3, she taps Read aloud 1:03.2 and the TV reads the card 1:03.8-1:10.1 |
+| **VO** (`s04`, split at its pause: "Long pages ... the whole room can read." at 0:49.8, "Want one read out loud? Just press OK." at 1:00.8, ending 0.3 s before the TV's voice) | "Long pages are hard to read from the couch. Press Make it cards, and I turn the page into big field-guide cards the whole room can read. Want one read out loud? Just press OK." |
+| **On screen** | The long Cheetah article. Maya presses *Make it cards* on her phone (or Play/Pause on the remote). Lumo thinks for a moment, then 3-5 big field-guide cards appear. Leo flips right with his phone. Center on the remote (or Read aloud on a phone, 1:03.2 in the emulator cut): Lumo reads the card aloud, with the card's text on screen. |
+| **Capture** | `.\video\capture.ps1 -Scene s04-cards -Seconds 60`. screenrecord has no audio. With AWS: fetch the exact Polly audio of the card you read (see "Polly audio for scene 4" below) into `video/sfx/polly-card.mp3` and add it to `s04b` as an `sfx` entry. The emulator cut runs on-device, so its read-aloud voice is the TV's own text-to-speech: `node video/tools/read-aloud.mjs` reads the same card on the same emulator and records it with sound (the emulator's own recorder), and `emulator-edl.mjs` lays it in at Maya's tap plus the measured latency. |
+| **Caption** | "Make it cards: a long page becomes big cards", then "Lumo reads it aloud with the TV's on-device voice" |
+| **App sounds** | 0:55.4 chime (cards land), 1:01.0 whoosh (card flip), 1:03.8 the TV's voice reading card 3 ("Size check. The cheetah stands 70-90 centimetres at the shoulder, and weighs 21-72 kilograms."), about 3 dB under Lumo's narration. Read aloud from the phone plays no UI sound. |
+
+### Scene 5: Family quest, Speed Safari (1:11.1-1:51.3)
+
+| | |
+|---|---|
+| **Timecode** | 1:11.1-1:30.7 (part A: Maya picks the quest 1:13.7, the intro 1:14.2, she types the falcon address on her phone 1:16.4-1:22.2, submits 1:23.4, accepted 1:25.5), 1:30.7-1:51.3 (part B: Leo's Cat rejected 1:35.4, his Cheetah accepted 1:40.0, Maya's Golden eagle accepted 1:43.6, the finale 1:46.8) |
+| **VO** | `s05a` at 1:11.3: "Now the fun part: family quests. Tonight it's Speed Safari. Find three animals faster than a car on the highway." <br> `s05b` at 1:20.9 (over Maya typing on her phone, then the submit and the proof): "Everyone races on their own phone. Found one? Submit it, and I check the page. I don't just say yes. I show you the sentence that proves it." <br> `s05c` at 1:33.5: "A house cat? Nice try, Leo." <br> `s05d` at 1:43.9: "Golden eagle! That's three. Maya wins the safari." |
 | **On screen** | **A:** Quests tile, the picker, the Speed Safari 🐆 intro card. Both phones race. Maya opens *Peregrine falcon* and taps *Submit*. "Lumo is checking your page..." Accepted: "+100 Maya, Peregrine falcon" with the evidence quote from the page on screen. Keep one check in real time so viewers see it's live. **B:** Leo submits *Cat*: a kind "not quite" with the reason. Leo submits *Cheetah*: +100. Maya submits *Golden eagle*: +100 and +50 for finishing, the finale scoreboard (Maya 250, Leo 100), confetti on Maya's phone. |
 | **Capture** | One long take: `.\video\capture.ps1 -Scene s05-quest -Seconds 180`, then cut it with two EDL entries (`s05a` and `s05b` both use `s05-quest.mp4` with different in/out points). Optional 2 s camera shot of Maya's phone celebrating. |
-| **Caption** | "Family quest: Speed Safari", "Checked against the page, with proof", "Not quite? Lumo says why", "+100 per find, +50 to finish" |
-| **App sounds** | 1:09.6 chime (quest intro), 1:23.8 success (Peregrine falcon), 1:33.2 fail (Cat), 1:38.6 success (Cheetah), 1:42.7 success (Golden eagle), 1:45.9 success (finale). |
+| **Caption** | "Family quest: Speed Safari", "Checked against the page, with proof", "Not quite? Lumo says why", "Leo tries again: Cheetah" (no narration from "Nice try, Leo." to "Golden eagle!"), "+100 per find, +50 to finish" |
+| **App sounds** | 1:14.2 chime (quest intro), 1:25.5 success (Peregrine falcon), 1:35.4 fail (Cat), 1:40.0 success (Cheetah), 1:43.6 success (Golden eagle), 1:46.8 success (finale). |
 
-### Scene 6: Drift rescue (1:52-2:21)
+### Scene 6: Drift rescue (1:51.3-2:21.0)
 
 | | |
 |---|---|
-| **Timecode** | 1:51.8-2:03.9 (hopping, shown at 2x), 2:03.9-2:21.5 (the rescue) |
-| **VO** | `s06a` at 1:52.1: "Some nights, the room just drifts. Page, page, page. I know circling when I see it." <br> `s06b` at 2:04.2: "So I get a little sleepy, and I offer something better: a quest, or a curious detour." <br> `s06c` at 2:12.9: "Say we're fine, and I believe you. I just wait longer next time. I learn your household. I never nag." |
+| **Timecode** | 1:51.3-2:03.4 (hopping, shown at 2x), 2:03.4-2:21.0 (the rescue appears 2:06.5, Leo's Back 2:12.6) |
+| **VO** | `s06a` at 1:51.6: "Some nights, the room just drifts. Page, page, page. I know circling when I see it." <br> `s06b` at 2:03.7: "So I get a little sleepy, and I offer something better: a quest, or a curious detour." <br> `s06c` at 2:12.4: "Say we're fine, and I believe you. I just wait longer next time. I learn your household. I never nag." |
 | **On screen** | Fast, aimless hopping: link, link, link, a few seconds each (demo mode: 4+ pages in under a minute). Lumo's mood slides to sleepy. The rescue overlay: Lumo's line (e.g. "We've hopped 5 pages in a minute. I know that dizzy feeling."), the measured detail ("5 pages · 1 min · ~9 s each") and two choices: a quest or a curious detour. Leo presses Back: "we're fine". Lumo answers kindly and settles back into the corner. |
 | **Capture** | `.\video\capture.ps1 -Scene s06-drift -Seconds 120` with demo mode on. The EDL speeds the hopping part up 2x and stamps a "2x speed" badge on it automatically, so nobody thinks it's faked. |
-| **Caption** | "Lumo notices drift from timing alone, on the TV", then "A quest, or a curious detour", then "Each "we're fine" = more patience next time" |
-| **App sounds** | 2:07.0 chime (the rescue appears), 2:13.1 back (Leo's Back: "we're fine"). Page loads play no sound. |
+| **Caption** | "Lumo notices drift from timing alone, on the TV", then "A quest, or a curious detour", then "Each "we're fine" = more patience next time". The badge moves top-right for the rescue part, clear of the overlay's "A nudge from Lumo" label; the page's wordmark and favicon, faint behind the overlay's scrim, are blurred too. |
+| **App sounds** | 2:06.5 chime (the rescue appears), 2:12.6 back (Leo's Back: "we're fine"). Page loads play no sound. |
 
-### Scene 7: How it works (2:21.5-2:42.5)
+### Scene 7: How it works (2:21.0-2:42.0)
 
 | | |
 |---|---|
-| **Timecode** | 2:21.5-2:42.5 |
-| **VO** (`s07`, at 2:21.8) | "How it works: phones talk to the TV over your own Wi-Fi, and page text leaves the TV only when you ask. On AWS, API Gateway, Lambda, Bedrock with Guardrails, DynamoDB and Polly do the thinking. No network? I still work, just like in this video." |
-| **On screen** | `docs/architecture.png` with a slow push-in: phones on the left, the Fire TV app in the middle, the dashed privacy boundary, the AWS pipeline on the right. |
+| **Timecode** | 2:21.0-2:42.0 |
+| **VO** (`s07`, at 2:21.3) | "How it works: phones talk to the TV over your own Wi-Fi, and page text leaves the TV only when you ask. On AWS, API Gateway, Lambda, Bedrock with Guardrails, DynamoDB and Polly do the thinking. No network? I still work, just like in this video." |
+| **On screen** | `docs/architecture.png` with a slow push-in: phones on the left, the Fire TV app in the middle, the dashed privacy boundary, the AWS pipeline on the right ("Infrastructure as code: AWS SAM / CloudFormation"; the stack is not deployed yet, so the diagram does not say it is). |
 | **Capture** | Nothing to record: the EDL uses the PNG with `"kenburns": true`. |
-| **Caption** | None (the diagram carries its own labels, including the privacy line). |
+| **Caption** | "This recording runs in on-device mode" (2:37.5-2:41.8, on "just like in this video"). The diagram carries its own labels, including the privacy line. |
 
-### End card (2:42.5-2:46)
+### End card (2:42.0-2:45.5)
 
 | | |
 |---|---|
-| **Timecode** | 2:42.5-2:46.0 |
-| **VO** (`s08`, at 2:42.8) | "Browse together. Wander well." |
-| **On screen** | `docs/end-card.png`: the moth wandering off from the lamp, the tagline, the repo URL, "Built for Fire TV · Powered by AWS". Put the real repo URL into `docs/end-card.svg` and re-render first. |
+| **Timecode** | 2:42.0-2:45.5 |
+| **VO** (`s08`, at 2:42.3) | "Browse together. Wander well." |
+| **On screen** | `docs/end-card.png`: the moth wandering off from the lamp, the tagline, the repo URL, "Built for Fire TV and AWS". Put the real repo URL into `docs/end-card.svg` and re-render first. |
 | **Capture** | None. |
 | **Caption** | None. |
 
@@ -160,7 +160,7 @@ This is the same audio the TV plays; it's added in post only because screenrecor
 3. `.\video\make_video.ps1 -Draft` for a quick look; before all footage or VO exists, add `-AllowMissing` (placeholder slates) and `-TempVo` (Windows' built-in voice reads `lines.json`, for timing only).
 4. `.\video\make_video.ps1` writes `video/out/wander-demo.mp4` and `video/out/wander-demo.srt`. It fails loudly if the cut runs over 2:58.
 
-EDL fields per scene: `file` (in `video/raw/`) or `image`; `in`, `out`, `speed` (adds a "2x speed" badge automatically), `seconds` and `kenburns` for images; `captions` (`text`, `from`, `to`, relative to the scene; optional `anchor` bottom/top/top-left/top-right/bottom-left/bottom-right, `size` in px, `x`/`y` or `cx` to place it off the app's own UI); `badge` (with optional `badge_anchor`, `badge_x`, `badge_y`; it stays on screen across cuts when the next entry carries the same badge); `vo` (`id`, `at`, which may be negative to start in the previous entry, and optional `in`/`out` to play only part of the take, with `text` as that part's subtitle); `sfx` (`file`, `at`, `volume`, `optional`); `blur` (boxes `x`, `y`, `w`, `h`, `from`, `to` in 1920x1080 output pixels, for a logo or a notification); `crop` (`x`, `y`, `w`, `h` in source pixels). Clip audio plays at `clip_volume` (25%) under the voice.
+EDL fields per scene: `file` (in `video/raw/`) or `image`; `in`, `out`, `speed` (adds a "2x speed" badge automatically), `seconds` and `kenburns` for images; `captions` (`text`, `from`, `to`, relative to the scene; optional `anchor` bottom/top/top-left/top-right/bottom-left/bottom-right, `size` in px, `x`/`y` or `cx` to place it off the app's own UI); `badge` (with optional `badge_anchor`, `badge_x`, `badge_y`; it is on every frame of its entry, with no fade, so it stays on screen across cuts between entries that carry it); `vo` (`id`, `at`, which may be negative to start in the previous entry, and optional `in`/`out` to play only part of the take, with `text` as that part's subtitle); `sfx` (`file`, `at`, `volume`, `optional`, and `in`/`out` to play only part of the file); `blur` (boxes `x`, `y`, `w`, `h`, `from`, `to` in 1920x1080 output pixels, for a logo or a notification); `crop` (`x`, `y`, `w`, `h` in source pixels). Clip audio plays at `clip_volume` (25%) under the voice.
 
 ## Trademark and copyright safety
 
@@ -194,11 +194,11 @@ Recorded on the Android TV emulator (Android 11, the base of Fire OS 8) running 
 Built for the Amazon Fire TV hackathon: Fire TV track + AWS Builder challenge.
 
 0:00 Meet Lumo
-0:10 Typing with a remote
-0:25 Phones as controllers
-0:50 Make it cards
-1:06 Family quest: Speed Safari
-1:52 Drift rescue
+0:09 Typing with a remote
+0:24 Phones as controllers
+0:49 Make it cards
+1:11 Family quest: Speed Safari
+1:51 Drift rescue
 2:21 How it works
 
 On AWS: API Gateway (HTTP API), AWS Lambda (Python), Amazon Bedrock (Converse + tool use) with Guardrails, Amazon DynamoDB, Amazon Polly, AWS CloudFormation / SAM, Amazon CloudWatch.

@@ -1,5 +1,5 @@
 {
-  "_comment": "Edit list for video/make_video.ps1, emulator cut. Times are seconds. Clip 'file' names resolve in video/raw/, VO ids resolve to video/vo/<id>.mp3, other relative paths resolve from the repo root. Scene 'in'/'out' are source times; 'at'/'from'/'to' are relative to the start of that scene in the final cut (after 'speed'); a negative VO 'at' starts the line in the previous segment. A VO entry with 'in'/'out' plays only that part of the take, with 'text' as its subtitle. Scenes split into several entries (s04, s05, s06) are one take cut down; *-comp clips are the TV and Maya's phone side by side (video/tools/composite.mjs). 'sfx' entries are the app's own UI sounds (app/src/main/res/raw) at the moments the app played them in the take, since screenrecord records no audio. Blur boxes hide the Wikipedia wordmark and favicon (windows from video/raw/<scene>.blur.json). See video/SCRIPT.md.",
+  "_comment": "Edit list for video/make_video.ps1, emulator cut. Times are seconds. Clip 'file' names resolve in video/raw/, VO ids resolve to video/vo/<id>.mp3, other relative paths resolve from the repo root. Scene 'in'/'out' are source times; 'at'/'from'/'to' are relative to the start of that scene in the final cut (after 'speed'); a negative VO 'at' starts the line in the previous segment. A VO entry with 'in'/'out' plays only that part of the take, with 'text' as its subtitle. Scenes split into several entries (s04, s05, s06) are one take cut down; *-comp clips are the TV and Maya's phone side by side (video/tools/composite.mjs). 'sfx' entries are the app's own UI sounds (app/src/main/res/raw) at the moments the app played them in the take, since screenrecord records no audio; likewise the TV's read-aloud voice in s04b is the app's on-device text-to-speech reading the same card on the same emulator, recorded with sound by video/tools/read-aloud.mjs and laid in at Maya's Read aloud tap (an sfx 'in'/'out' plays only that part of the file). Blur boxes hide the Wikipedia wordmark and favicon (windows from video/raw/<scene>.blur.json). See video/SCRIPT.md.",
   "fps": 30,
   "clip_volume": 0.25,
   "max_seconds": 178,
@@ -20,14 +20,14 @@
       "id": "s01",
       "file": "s01-home.mp4",
       "in": 0,
-      "out": 7,
+      "out": 5.6,
       "badge": "Android TV emulator · Fire OS APK",
       "badge_y": 8,
       "captions": [
         {
           "text": "Meet Lumo",
           "from": 0.6,
-          "to": 6.6,
+          "to": 5.3,
           "cx": 1640,
           "y": 618
         }
@@ -80,7 +80,7 @@
         },
         {
           "id": "s03",
-          "at": 18.86,
+          "at": 18.46,
           "in": 13.3,
           "out": 14.66,
           "text": "Leo scrolls."
@@ -142,32 +142,35 @@
     {
       "id": "s04a",
       "file": "s04-cards-comp.mp4",
-      "in": 0,
+      "in": 0.1,
       "out": 13.4,
       "badge": "Android TV emulator · Fire OS APK",
       "vo": [
         {
           "id": "s04",
-          "at": 1
+          "at": 0.9,
+          "in": 0,
+          "out": 8.75,
+          "text": "Long pages are hard to read from the couch. Press Make it cards, and I turn the page into big field-guide cards the whole room can read."
         }
       ],
       "sfx": [
         {
           "file": "app/src/main/res/raw/sfx_chime.wav",
-          "at": 6.55,
+          "at": 6.45,
           "volume": 0.19
         },
         {
           "file": "app/src/main/res/raw/sfx_whoosh.wav",
-          "at": 12.15,
+          "at": 12.05,
           "volume": 0.16
         }
       ],
       "captions": [
         {
           "text": "Make it cards: a long page becomes big cards",
-          "from": 3.4,
-          "to": 13.2,
+          "from": 3.3,
+          "to": 13.1,
           "cx": 752,
           "y": 930
         }
@@ -179,29 +182,46 @@
           "w": 191,
           "h": 42,
           "from": 0,
-          "to": 3.27
+          "to": 3.17
         },
         {
           "x": 107,
           "y": 132,
           "w": 191,
           "h": 40,
-          "from": 2.9,
-          "to": 13.4
+          "from": 2.8,
+          "to": 13.3
         }
       ]
     },
     {
       "id": "s04b",
       "file": "s04-cards-comp.mp4",
-      "in": 17.6,
-      "out": 20.4,
+      "in": 17,
+      "out": 25.9,
       "badge": "Android TV emulator · Fire OS APK",
+      "vo": [
+        {
+          "id": "s04",
+          "at": -1.4,
+          "in": 8.75,
+          "text": "Want one read out loud? Just press OK."
+        }
+      ],
+      "sfx": [
+        {
+          "file": "video/raw/s04-read.wav",
+          "in": 2,
+          "out": 8.66,
+          "at": 1.53,
+          "volume": 2.2
+        }
+      ],
       "captions": [
         {
-          "text": "Press OK: Lumo reads the card aloud",
-          "from": 0.2,
-          "to": 2.65,
+          "text": "Lumo reads it aloud with the TV's on-device voice",
+          "from": 0.3,
+          "to": 8.6,
           "cx": 752,
           "y": 930
         }
@@ -213,7 +233,7 @@
           "w": 191,
           "h": 40,
           "from": 0,
-          "to": 2.8
+          "to": 8.9
         }
       ]
     },
@@ -221,7 +241,7 @@
       "id": "s05a",
       "file": "s05-quest-comp.mp4",
       "in": 3.1,
-      "out": 17.6,
+      "out": 14.7,
       "badge": "Android TV emulator · Fire OS APK",
       "vo": [
         {
@@ -240,7 +260,7 @@
         {
           "text": "Family quest: Speed Safari",
           "from": 3.3,
-          "to": 11.4,
+          "to": 11.3,
           "cx": 752,
           "y": 930
         }
@@ -253,22 +273,6 @@
           "h": 42,
           "from": 0,
           "to": 0.11
-        },
-        {
-          "x": 107,
-          "y": 132,
-          "w": 191,
-          "h": 42,
-          "from": 11.71,
-          "to": 14.5
-        },
-        {
-          "x": 120,
-          "y": 170,
-          "w": 57,
-          "h": 54,
-          "from": 11.71,
-          "to": 14.5
         }
       ]
     },
@@ -276,12 +280,12 @@
       "id": "s05b",
       "file": "s05-quest-comp.mp4",
       "in": 20.8,
-      "out": 28.3,
+      "out": 28.8,
       "badge": "Android TV emulator · Fire OS APK",
       "vo": [
         {
           "id": "s05b",
-          "at": -2.75
+          "at": -1.8
         }
       ],
       "sfx": [
@@ -295,7 +299,7 @@
         {
           "text": "Checked against the page, with proof",
           "from": 0.8,
-          "to": 7.2,
+          "to": 7.6,
           "cx": 752,
           "y": 930
         }
@@ -331,7 +335,7 @@
           "w": 191,
           "h": 42,
           "from": 6.41,
-          "to": 7.5
+          "to": 8
         }
       ]
     },
@@ -364,7 +368,7 @@
       "id": "s05d",
       "file": "s05-quest-comp.mp4",
       "in": 36.9,
-      "out": 43,
+      "out": 42.6,
       "badge": "Android TV emulator · Fire OS APK",
       "vo": [
         {
@@ -383,7 +387,7 @@
         {
           "text": "Not quite? Lumo says why",
           "from": 2.9,
-          "to": 6,
+          "to": 5.4,
           "cx": 752,
           "y": 930
         }
@@ -403,79 +407,28 @@
           "w": 191,
           "h": 24,
           "from": 2.41,
-          "to": 6.1
+          "to": 5.7
         }
       ]
     },
     {
       "id": "s05e",
       "file": "s05-quest-comp.mp4",
-      "in": 52.6,
+      "in": 53,
       "out": 56.6,
       "badge": "Android TV emulator · Fire OS APK",
       "sfx": [
         {
           "file": "app/src/main/res/raw/sfx_success.wav",
-          "at": 1.72,
-          "volume": 0.23
-        }
-      ],
-      "blur": [
-        {
-          "x": 107,
-          "y": 132,
-          "w": 191,
-          "h": 42,
-          "from": 0,
-          "to": 2.21
-        },
-        {
-          "x": 107,
-          "y": 132,
-          "w": 191,
-          "h": 24,
-          "from": 1.61,
-          "to": 2.41
-        },
-        {
-          "x": 107,
-          "y": 132,
-          "w": 191,
-          "h": 24,
-          "from": 1.91,
-          "to": 4
-        }
-      ]
-    },
-    {
-      "id": "s05f",
-      "file": "s05-quest-comp.mp4",
-      "in": 75,
-      "out": 86,
-      "badge": "Android TV emulator · Fire OS APK",
-      "vo": [
-        {
-          "id": "s05d",
-          "at": 2.2
-        }
-      ],
-      "sfx": [
-        {
-          "file": "app/src/main/res/raw/sfx_success.wav",
-          "at": 1.85,
-          "volume": 0.23
-        },
-        {
-          "file": "app/src/main/res/raw/sfx_success.wav",
-          "at": 5.05,
+          "at": 1.32,
           "volume": 0.23
         }
       ],
       "captions": [
         {
-          "text": "+100 per find, +50 to finish",
-          "from": 1,
-          "to": 5.4,
+          "text": "Leo tries again: Cheetah",
+          "from": 0.3,
+          "to": 3.4,
           "cx": 752,
           "y": 930
         }
@@ -487,23 +440,83 @@
           "w": 191,
           "h": 42,
           "from": 0,
-          "to": 2.51
+          "to": 1.81
         },
         {
           "x": 107,
           "y": 132,
           "w": 191,
           "h": 24,
-          "from": 2.01,
-          "to": 5.31
+          "from": 1.21,
+          "to": 2.01
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 24,
+          "from": 1.51,
+          "to": 3.6
+        }
+      ]
+    },
+    {
+      "id": "s05f",
+      "file": "s05-quest-comp.mp4",
+      "in": 75.5,
+      "out": 84.6,
+      "badge": "Android TV emulator · Fire OS APK",
+      "vo": [
+        {
+          "id": "s05d",
+          "at": 1.7
+        }
+      ],
+      "sfx": [
+        {
+          "file": "app/src/main/res/raw/sfx_success.wav",
+          "at": 1.35,
+          "volume": 0.23
+        },
+        {
+          "file": "app/src/main/res/raw/sfx_success.wav",
+          "at": 4.55,
+          "volume": 0.23
+        }
+      ],
+      "captions": [
+        {
+          "text": "+100 per find, +50 to finish",
+          "from": 0.5,
+          "to": 4.9,
+          "cx": 752,
+          "y": 930
+        }
+      ],
+      "blur": [
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 42,
+          "from": 0,
+          "to": 2.01
+        },
+        {
+          "x": 107,
+          "y": 132,
+          "w": 191,
+          "h": 24,
+          "from": 1.51,
+          "to": 4.81
         },
         {
           "x": 107,
           "y": 132,
           "w": 191,
           "h": 42,
-          "from": 4.71,
-          "to": 5.61
+          "from": 4.21,
+          "to": 5.11
         }
       ]
     },
@@ -586,6 +599,7 @@
       "out": 42.6,
       "badge": "Android TV emulator · Fire OS APK",
       "badge_y": 8,
+      "badge_anchor": "top-right",
       "vo": [
         {
           "id": "s06b",
@@ -630,7 +644,7 @@
           "w": 254,
           "h": 56,
           "from": 0,
-          "to": 3.3
+          "to": 2.95
         },
         {
           "x": 118,
@@ -638,7 +652,7 @@
           "w": 76,
           "h": 72,
           "from": 0,
-          "to": 3.3
+          "to": 2.95
         },
         {
           "x": 100,
@@ -653,6 +667,14 @@
           "y": 22,
           "w": 254,
           "h": 40,
+          "from": 2.9,
+          "to": 9.4
+        },
+        {
+          "x": 124,
+          "y": 92,
+          "w": 62,
+          "h": 48,
           "from": 2.9,
           "to": 9.4
         }

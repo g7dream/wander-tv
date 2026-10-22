@@ -67,7 +67,7 @@
   <rect x="470" y="590" width="660" height="72" rx="36" fill="#1B1529" stroke="#3A2F57" stroke-width="2"/>
   <text id="repo" class="b" x="800" y="637" font-size="30" font-weight="700" fill="#F7EFE2" text-anchor="middle">github.com/g7dream/wander-tv</text>
 
-  <text class="b" x="800" y="732" font-size="28" fill="#B9AECC" text-anchor="middle">Built for Fire TV  ·  Powered by AWS</text>
+  <text class="b" x="800" y="732" font-size="28" fill="#B9AECC" text-anchor="middle">Built for Fire TV and AWS</text>
 
   <g>
     <circle cx="752" cy="800" r="8" fill="#FFB547"/>
