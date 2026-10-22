@@ -168,11 +168,21 @@
     return p && p.host ? p.host : null; // step out of a shadow root
   }
 
+  /**
+   * When <html> keeps the default overflow, <body>'s overflow is handed to the viewport (CSS propagation),
+   * so body itself never scrolls even if its computed style says "scroll" (Wikipedia does this).
+   */
+  function bodyScrollsItself() {
+    var hs = getComputedStyle(document.documentElement);
+    return hs.overflowY !== 'visible' || hs.overflowX !== 'visible';
+  }
+
   /** The nearest scrollable ancestor under (x, y) that can still move in (dx, dy); null = the window. */
   function scrollerAt(x, y, dx, dy) {
     var root = document.scrollingElement || document.documentElement;
     var el = document.elementFromPoint(x, y);
     for (var i = 0; el && el !== root && i < 64; i++) {
+      if (el === document.body && !bodyScrollsItself()) break;
       if (((dy && overflows(el, true)) || (dx && overflows(el, false))) && hasRoom(el, dx, dy)) return el;
       el = parentOf(el);
     }
