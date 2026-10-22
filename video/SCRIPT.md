@@ -191,7 +191,7 @@ The rules forbid third-party trademarks and copyrighted music or footage without
 Wander TV is a couch-first web browser for Fire TV. Every phone in the room becomes a keyboard and touchpad (scan a QR code, no app to install), and Lumo, a small moth, turns long pages into big cards, runs family quests judged by AI with the proof shown on screen, and notices when the room starts drifting.
 
 Recorded on the Android TV emulator (Android 11, the base of Fire OS 8) running the Wander Fire OS APK: no Fire TV device was available in time. The AWS backend is built and tested but its deploy was blocked by AWS account verification, so this recording runs in on-device mode.
-Built for the Amazon Fire TV hackathon: Fire TV track + AWS Builder challenge.
+Built for the Amazon Fire TV hackathon: Fire TV track + AWS Builder challenge. One feature (Family SafeSearch everywhere) was built with Kiro Crew.
 
 0:00 Meet Lumo
 0:09 Typing with a remote
