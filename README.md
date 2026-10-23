@@ -8,7 +8,7 @@
 
 *Browse together. Wander well.*
 
-Fire TV track · AWS Builder mini challenge · [Demo video](#demo-video) · [Download the APK](../../releases/latest) · [Devpost write-up](docs/DEVPOST.md) · [Architecture](#architecture)
+Fire TV track · AWS Builder mini challenge · [Demo video](#demo-video) · [Download the APK](release/wander-tv.apk) · [Devpost write-up](docs/DEVPOST.md) · [Architecture](#architecture)
 
 ---
 
@@ -37,7 +37,7 @@ Wander rebuilds the browser around the couch: everyone can drive, long pages bec
 
 ## Demo video
 
-**[FILL IN: YouTube link]** (about 2:50, narrated by Lumo). The footage is recorded on the Android TV emulator running the Fire OS APK, and labeled as such: no Fire TV device was available in time. The script, voiceover lines and the capture/edit pipeline are in [video/](video/SCRIPT.md).
+**[Watch the demo on YouTube](https://youtu.be/2YthN9QHBXM)** (2:45, narrated by Lumo). The footage is recorded on the Android TV emulator running the Fire OS APK, and labeled as such: no Fire TV device was available in time. The script, voiceover lines and the capture/edit pipeline are in [video/](video/SCRIPT.md).
 
 ## Screenshots
 
@@ -128,7 +128,7 @@ When one fires, Lumo gets sleepy and offers two ways out: a quest or a curious d
 You need a Fire TV that runs **Fire OS** (for example Fire TV Stick 4K or 4K Max) and a computer with `adb` ([Android platform-tools](https://developer.android.com/tools/releases/platform-tools)). Fire TV models that run Vega OS (such as the Fire TV Stick 4K Select and the newest Fire TV Stick HD) can't install Android APKs.
 
 1. **Turn on ADB on the Fire TV.** Settings > My Fire TV > About, then press Select on the device name 7 times to unlock Developer Options. Go back, open Developer Options and turn on ADB Debugging. Find the TV's IP under Settings > My Fire TV > About > Network.
-2. **Get the APK.** Download `wander-tv.apk` from [GitHub Releases](../../releases/latest), or [build it](#build-from-source).
+2. **Get the APK.** Download [`release/wander-tv.apk`](release/wander-tv.apk) from this repo, or [build it](#build-from-source).
 3. **Install it.**
    ```sh
    adb connect <fire-tv-ip>:5555      # accept the "Allow USB debugging?" prompt on the TV
