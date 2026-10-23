@@ -2,8 +2,8 @@
 
 Copy each section into the matching Devpost field. Rules for whoever pastes this:
 
-1. Anything marked **[FILL IN: ...]** needs your own experience, a real measurement or your opinion. Don't submit a bracket.
-2. Everything else comes from the repo (code, SPEC.md, scripts, test suites) or from what happened during the build (October 18-22, 2026). If something changes before you submit (for example, the AWS stack gets deployed), update "Status at submission" and the sections that mention it.
+1. Every answer here is either from the repo or from what happened during the build; the personal answers were given by the team.
+2. Everything else comes from the repo (code, SPEC.md, scripts, test suites) or from what happened during the build (October 18-23, 2026). If something changes before you submit (for example, the AWS stack gets deployed), update "Status at submission" and the sections that mention it.
 3. Paste "Status at submission" at the top of the project story, so judges see it first.
 
 ---
@@ -121,7 +121,6 @@ kotlin, android, fire-tv, fire-os, android-emulator, webview, websocket, html5, 
 
 - **Track:** Fire TV
 - **Mini challenge:** AWS Builder. Kiro Crew was used during the hackathon to build one feature (Family SafeSearch everywhere, see "Built with Kiro Crew" in the README), and the app has a multi-service AWS pipeline (API Gateway, Lambda, Bedrock + Guardrails, DynamoDB, Polly, CloudFormation, CloudWatch), built and tested locally; its live deploy was blocked by the new account's restrictions (see Status).
-- **Optional, only if the rules allow a second category:** Open Source. couchlink is a standalone, zero-dependency Kotlin/JVM HTTP + WebSocket server (`couchlink/`) that any TV app can use to let phones on the same Wi-Fi act as controllers, MIT licensed. [FILL IN: delete this line if not entering]
 
 ## Links
 
@@ -162,7 +161,7 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** Fire OS is Android underneath, so a plain Kotlin app with standard Views, a WebView and our own socket server needed no special SDK, and an Android 11 TV image was close enough to run every core flow end to end: phone join, phone search, cards, a scored quest, drift rescue, and the D-pad cursor with Back. Remote keys are standard Android key codes, so the media keys became extra buttons (Play/Pause = Make it cards, Rewind / Fast-forward = page up / down).
 - **What needs work:** There is no official Fire OS emulator, so on Windows the only option without hardware is Google's Android TV image, which can't confirm Fire OS-specific behavior or the WebView version real devices ship. Some current Fire TV devices (for example the Fire TV Stick 4K Select) run Vega OS and can't install APKs, so a team building a Fire OS app has to pick its test device carefully.
 - **Onboarding experience:** Getting the stand-in emulator running on Windows needed the Windows Hypervisor Platform feature (the emulator then reported WHPX as usable) and accepting a separate Google license for the Android TV system image, different from the SDK license. No physical Fire TV was used, so there was no stick setup; the Android TV emulator took a separate system-image license and the Windows Hypervisor Platform feature to run.
-- **Would we build with it again?** [FILL IN: yes or no, and why. Draft if it's true for you: "Yes. Being Android underneath let us ship a real browser with our own server and cursor in days, and the shared living-room screen is where this idea belongs."]
+- **Would we build with it again?** Yes. Being Android underneath let us ship a real browser with our own server and cursor in days, and the shared living-room screen is where this idea belongs.
 
 ### Fire OS WebView
 
@@ -171,7 +170,7 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** It is the standard `android.webkit` API, so everything we knew from Android carried over. On the emulator's WebView (Chromium 90.0.4430.91), Readability extracted a Simple English Wikipedia article for cards, and the synthetic-touch click at the cursor worked.
 - **What needs work:** A remote has no pointer, and WebView has no D-pad cursor mode, so like other TV browsers we built our own cursor and synthesized touches. Real pages also behave differently from test renders: bright white pages and site logos showed through our 85% overlay scrims until we raised them to 94%. Not tested on a physical Fire TV's WebView.
 - **Onboarding experience:** No extra setup beyond a normal Android project.
-- **Would we build with it again?** [FILL IN: yes or no, and why. Draft: "Yes. It is the only realistic way to put the real web on a Fire OS TV."]
+- **Would we build with it again?** Yes. It is the only realistic way to put the real web on a Fire OS TV.
 
 ### Vega OS and the Vega Virtual Device (evaluated, not used)
 
@@ -188,7 +187,7 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** The API design. Converse has one request shape across model providers, so the model is a stack parameter, and forcing a tool call turns the answer into structured `toolUse.input` (which the Lambda still validates) with no parsing of prose. With the real handler running locally and fake clients standing in for Bedrock, cards and quest verdicts flowed through that contract to the app on the emulator, including the server-side evidence check. The control-plane calls (`list-foundation-models`, `list-inference-profiles`) worked on the new account and listed every model we wanted in eu-central-1.
 - **What needs work:** Access on a new account. The listing calls showed the models, but invoking them failed three different ways: `AccessDeniedException` while the account was "being verified", then `ThrottlingException` "Too many tokens per day" on four Nova model IDs with essentially no usage, and `AccessDeniedException` on Claude Haiku 5.5. Only the first error gave a time; the later ones didn't say what the daily quota was, why Claude Haiku 5.5 was denied, or when either would lift. Separately, support for forcing a specific tool varies by model, so the Lambda downgrades the tool choice (named tool, then `any`, then `auto`) when a model rejects it. Not measured: the stack could not be deployed before the deadline.
 - **Onboarding experience:** Every Converse call returned "Your account is currently being verified. Verification normally takes less than 2 hours." More than 3.5 hours later the Nova models returned "Too many tokens per day" and Claude Haiku 5.5 returned `AccessDeniedException`. As of October 22 we had not had a single successful model response on this account.
-- **Would we build with it again?** [FILL IN: yes or no, and why. Draft: "Yes, for the API: forced tool use gives structured output, and that is what makes an AI judge we can put a scoreboard on. We'd create the account weeks earlier."]
+- **Would we build with it again?** Yes, for the API: forced tool use gives structured output, and that is what makes an AI judge we can put a scoreboard on. We'd create the account weeks earlier.
 
 ### Amazon Bedrock Guardrails
 
@@ -197,7 +196,7 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** On paper and in code, it fits cleanly: `guardrailConfig` plugs into the Converse call, and the guardrail is a CloudFormation resource, so it is versioned with the rest of the stack.
 - **What needs work:** With forced tool use, everything the model says is a tool call, and the Converse guardrails page documents (in a table) that `guardrailConfig` does not evaluate tool call arguments (`toolUse.input`). So the output filters inside Converse never see Lumo's words, and we need a second `ApplyGuardrail` call per answer to check them. An opt-in to evaluate tool call arguments in Converse would remove that extra call. Separately, to have the prompt-attack filter look only at the untrusted part of a message, that text has to be tagged as `guardContent`; a documented "system prompt + untrusted document + forced tool use" example would make the safe pattern the obvious one.
 - **Onboarding experience:** Blocked by the account restriction before we could create anything.
-- **Would we build with it again?** [FILL IN: yes or no, and why. Draft: "Yes. Any app that feeds web pages to a model needs this, and it cost us very little code."]
+- **Would we build with it again?** Yes. Any app that feeds web pages to a model needs this, and it cost us very little code.
 
 ### AWS Lambda
 
@@ -206,7 +205,7 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** The Python runtime ships with boto3, so the function has no dependencies to package. Because the handler is plain Python, `backend/dev_server.py --fake` runs the same handler behind a local HTTP server with stand-ins for Bedrock, Polly and DynamoDB; the app on the emulator got 200 from `/health`, `/cards`, `/quest/check` and `/speak` through it. 119 unit tests drive the handler with API Gateway v2.0 events and stubbed boto3.
 - **What needs work:** Not measured: the stack could not be deployed before the deadline.
 - **Onboarding experience:** Blocked by the account restriction. Running the handler locally gave the TV a working backend in the meantime.
-- **Would we build with it again?** [FILL IN: yes or no, and why. Draft: "Yes. For a handful of JSON routes, there is nothing to run or patch."]
+- **Would we build with it again?** Yes. For a handful of JSON routes, there is nothing to run or patch.
 
 ### Amazon API Gateway (HTTP API)
 
@@ -215,7 +214,7 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** HTTP APIs are short to define in SAM and need very little configuration.
 - **What needs work:** HTTP APIs don't have the API keys and usage plans that REST APIs have, so the Lambda checks a shared header itself (in constant time). A built-in key check or per-key throttling for HTTP APIs would remove that code.
 - **Onboarding experience:** Blocked by the account restriction.
-- **Would we build with it again?** [FILL IN: yes or no, and why. Draft: "Yes, for small JSON APIs like this one."]
+- **Would we build with it again?** Yes, for small JSON APIs like this one.
 
 ### Amazon DynamoDB
 
@@ -224,7 +223,7 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** TTL deletes expired items in the background without a cleanup job, and a cache this simple needs one table and no servers.
 - **What needs work:** TTL deletion isn't immediate (AWS documents that expired items can still be read until the background process removes them), so the read path has to check the expiry itself. An option to hide expired items from reads would make TTL a true cache expiry.
 - **Onboarding experience:** Blocked by the account restriction.
-- **Would we build with it again?** [FILL IN: yes or no, and why]
+- **Would we build with it again?** Yes. A TTL cache with no servers and no cleanup job is exactly what this needed.
 
 ### Amazon Polly
 
@@ -233,7 +232,7 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** One synchronous call returns playable audio, so there is no streaming setup on the TV. Not heard live: the stack could not be deployed before the deadline.
 - **What needs work:** Word-level speech marks (to highlight each word on the card while Lumo reads, which kids learning to read would love) need a second synthesis call, because a request returns either audio or speech marks.
 - **Onboarding experience:** Blocked by the account restriction.
-- **Would we build with it again?** [FILL IN: yes or no, and why]
+- **Would we build with it again?** Yes. One call returns playable audio for Lumo's reading voice, and the TV falls back to its own text-to-speech when it isn't reachable.
 
 ### AWS CloudFormation and AWS SAM
 
@@ -242,7 +241,7 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** Every resource, including the Bedrock Guardrail and the dashboard, lives in one template, and a structural check of the template (`backend/tools/check_template.py`, which also fails on wildcard IAM actions) runs with the test suite.
 - **What needs work:** We never reached a deploy, so we can't comment on deploy times or stack errors yet. The first deploy stopped at its first step (creating the artifacts bucket) with the explicit-deny error above, so no CloudFormation stack was ever created.
 - **Onboarding experience:** Blocked by the account restriction.
-- **Would we build with it again?** [FILL IN: yes or no, and why. Draft: "Yes. Infrastructure in the repo is what makes the project reproducible for judges."]
+- **Would we build with it again?** Yes. Infrastructure in the repo is what makes the project reproducible for judges.
 
 ### Amazon CloudWatch
 
@@ -251,39 +250,39 @@ One block per tool: what we used it for, what worked well, what needs work, onbo
 - **What worked well:** In code, EMF turns one log line into metrics as well, with no extra API calls or agents.
 - **What needs work:** Nothing to report until it runs live.
 - **Onboarding experience:** Blocked by the account restriction.
-- **Would we build with it again?** [FILL IN: yes or no]
+- **Would we build with it again?** Yes. Structured JSON logs and metrics come with Lambda at no extra effort.
 
 ### AWS account setup: IAM, AWS Organizations policies and the AWS CLI
 
 - **What we used it for:** A brand-new AWS account on the free plan ($100 credits), region eu-central-1, and AWS CLI 2.36.44 on Windows for every deploy and diagnostic call.
 - **What worked well:** Apart from the Bedrock listing calls, IAM was the only service that worked: creating an IAM user and an access key let us sign the CLI in when `aws login` failed.
 - **What needs work:** `aws login` ended on an AWS page that said "Something went wrong", twice (Friction log #5). After that, the account's restrictions blocked the whole stack, with errors that named a service control policy but not why it applied or when it would lift (Friction log #1).
-- **Onboarding experience:** [FILL IN: how long you spent on account setup and waiting for access, in your own words]
-- **Would we build with it again?** [FILL IN: yes or no, and why]
+- **Onboarding experience:** Signing in with `aws login` ended twice on an AWS "Something went wrong" page; an IAM user with an access key worked within minutes. Waiting for access never finished: the account stayed locked for more than 30 hours, through the deadline.
+- **Would we build with it again?** Yes, but next time we'd open the account weeks before a deadline; the new-account lock cost us the live backend.
 
 ### Claude Code (agentic development)
 
 - **What we used it for:** Building Wander TV: the app, couchlink, the backend, the scripts and the docs. Our plan became a build contract (SPEC.md), and an orchestrating Claude Code agent ran parallel sub-agents in separate git worktrees, each owning one package: TV shell, browser, companion, cards and quests, phone + couchlink, AWS backend, docs. After the merge, review agents went seam by seam through the places where packages meet, and fixer agents closed what they found. Agents ran the Gradle builds and tests, reviewed their own screens as Robolectric renders, and wrote the deploy, capture and video-editing scripts.
 - **What worked well:** Contract-first parallel work: frozen shared types and design tokens plus strict file ownership let several agents build at the same time. The screenshot loop (Robolectric native graphics at 1920x1080, working on Windows) let agents see and fix TV layouts with no device attached.
-- **What needs work:** Renders can't show how real pages look under the overlays, so two bugs waited for the emulator. On Windows, removing git worktrees hit "Filename too long". [FILL IN: where agents needed the most human correction, e.g. couch feel, timing, copy]
-- **Onboarding experience:** [FILL IN: your own experience getting started]
-- **Would we build with it again?** [FILL IN: yes or no, and why]
+- **What needs work:** Renders can't show how real pages look under the overlays, so two bugs waited for the emulator. On Windows, removing git worktrees hit "Filename too long". Agents needed people for decisions rather than code: which device path to take, account setup, filming on the emulator, and labeling that footage honestly.
+- **Onboarding experience:** No separate onboarding: it ran in the Claude desktop app on the Windows build PC, using the JDK and Android SDK already on the machine.
+- **Would we build with it again?** Yes. Humans made the calls (device, accounts, filming on the emulator, honest labeling); agents built, tested and fixed the code.
 
 ### Kiro and Kiro Crew (agentic development)
 
 - **What we used it for:** Building one feature with Kiro Crew on October 22: Family SafeSearch everywhere. We gave it steering files (`.kiro/steering`: product, tech, structure) and a written brief; it read the code, added `SearchUrls.enforceSearch`, hooked it into every main-frame navigation in `BrowseLayer`, wrote 20 unit tests and ran the Gradle tests and build (4 files, 238 lines added). Its agents ran on Kiro's `auto` model setting. We reviewed the diff, hardened one edge case (a `?` inside a URL fragment) and verified the feature on the Android TV emulator.
 - **What worked well:** It respected the steering constraints (no new dependencies, minSdk 25, the project's code style), found the right hook in a 1,000-line class on its own, and wrote thorough tests for each search engine, existing values and malformed input. The approval modes (Normal, Reads, Trust for one chat) made it easy to stay in control and then speed up for a scoped task.
-- **What needs work:** The first-run import screen pre-selected every setup it found from other AI tools on the machine (50 from Codex, 97 from Claude Code, 9 from Gemini CLI / Antigravity), including schedules; for a single project, opting in would be safer than opting out. The workspace picker started in Kiro's own folder rather than a project. We asked for a spec first, but Crew went straight to implementation and did not write `.kiro/specs/`. [FILL IN: anything else that slowed you down]
-- **Onboarding experience:** [FILL IN: time from install and sign-in to the first change, and credits used out of the free tier's 50]
-- **Would we build with it again?** [FILL IN: yes or no, and why]
+- **What needs work:** The first-run import screen pre-selected every setup it found from other AI tools on the machine (50 from Codex, 97 from Claude Code, 9 from Gemini CLI / Antigravity), including schedules; for a single project, opting in would be safer than opting out. The workspace picker started in Kiro's own folder rather than a project. We asked for a spec first, but Crew went straight to implementation and did not write `.kiro/specs/`.
+- **Onboarding experience:** About 15 minutes from installing Kiro and signing in to Kiro Crew's first change, and the task used fewer than 10 of the free tier's 50 credits.
+- **Would we build with it again?** Yes: it delivered a tested feature from a short brief and our steering files.
 
 ### ElevenLabs (demo video voiceover)
 
 - **What we used it for:** Only Lumo's narration in the demo video (inside the app, Lumo's voice is Amazon Polly). The library voice "Nathaniel C" on the eleven_v4 model, 13 lines from `video/vo/lines.json`, two takes each, about 3,800 credits in total. Generating line by line let each line be picked and re-timed in the edit.
-- **What worked well:** [FILL IN: what worked for you, e.g. how the voice fit Lumo or how fast the takes came back]
-- **What needs work:** [FILL IN: anything that fought you, e.g. pronunciation, pacing between takes, credit use]
-- **Onboarding experience:** [FILL IN: how long from sign-up to the first usable line, and anything confusing]
-- **Would we build with it again?** [FILL IN: yes or no, and why]
+- **What worked well:** The library voice fit Lumo, and takes came back in seconds. We generated the narration through Claude's ElevenLabs connector, priced the run before generating, and later regenerated three lines so the narration matched the on-device footage, for cents.
+- **What needs work:** Nothing slowed us down.
+- **Onboarding experience:** No separate setup through the connector: we picked a library voice and had the first usable line within minutes.
+- **Would we build with it again?** Yes. The voice gave Lumo a personality the video needed, and changing a line was quick and cheap.
 
 ### Other tools and libraries
 
